@@ -12,6 +12,8 @@ pub struct InputHandler {
     pub mouse_delta: (f64, f64),
     pub left_mouse_pressed: bool,
     pub right_mouse_pressed: bool,
+    sensitivity: f32,
+    walk_speed: f32,
 }
 
 impl InputHandler {
@@ -21,7 +23,17 @@ impl InputHandler {
             mouse_delta: (0.0, 0.0),
             left_mouse_pressed: false,
             right_mouse_pressed: false,
+            sensitivity: 0.005,
+            walk_speed: 4.3,
         }
+    }
+
+    pub fn set_sensitivity(&mut self, sensitivity: f32) {
+        self.sensitivity = sensitivity;
+    }
+
+    pub fn set_walk_speed(&mut self, speed: f32) {
+        self.walk_speed = speed;
     }
 
     pub fn process_keyboard(&mut self, event: &KeyEvent) {
@@ -54,19 +66,15 @@ impl InputHandler {
     }
 
     pub fn update_camera(&mut self, camera: &mut Camera) {
-        let sensitivity = 0.005;
-
         // Mouse look (no button hold required now)
-        camera.yaw += self.mouse_delta.0 as f32 * sensitivity;
-        camera.pitch -= self.mouse_delta.1 as f32 * sensitivity;
+        camera.yaw += self.mouse_delta.0 as f32 * self.sensitivity;
+        camera.pitch -= self.mouse_delta.1 as f32 * self.sensitivity;
         camera.pitch = camera.pitch.clamp(-1.5, 1.5);
 
         self.mouse_delta = (0.0, 0.0);
     }
 
     pub fn update_player(&mut self, player: &mut Player, camera: &Camera, _delta_time: f32) {
-        let speed = 4.3; // Walking speed in blocks/second
-
         let mut movement = glam::Vec3::ZERO;
 
         // Horizontal movement
@@ -85,7 +93,7 @@ impl InputHandler {
 
         // Normalize horizontal movement to prevent faster diagonal movement
         if movement.length_squared() > 0.0 {
-            movement = movement.normalize() * speed;
+            movement = movement.normalize() * self.walk_speed;
         }
 
         player.velocity.x = movement.x;

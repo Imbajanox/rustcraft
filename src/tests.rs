@@ -347,5 +347,140 @@ mod tests {
         assert_eq!(aabb.min.z, 4.7);
         assert_eq!(aabb.max.z, 5.3);
     }
+
+    #[test]
+    fn test_player_physics_on_ground() {
+        let mut world = World::new(12345);
+        let mut chunk = Chunk::new(0, 0);
+        
+        // Create a floor at y=10
+        for x in 0..16 {
+            for z in 0..16 {
+                chunk.set_block(x, 10, z, BlockType::Dirt);
+            }
+        }
+        world.chunks.insert((0, 0), chunk);
+        
+        // Place player above the floor
+        let mut player = Player::new(Vec3::new(8.0, 15.0, 8.0));
+        
+        // Run physics for enough time to fall - player should fall and land on ground
+        for _ in 0..200 {
+            player.apply_physics(0.016, &world); // ~60 FPS
+            if player.on_ground {
+                break;
+            }
+        }
+        
+        assert!(player.on_ground, "Player should be on ground after falling. Position: {}, Velocity: {}", player.position.y, player.velocity.y);
+        // Player should be standing on top of block at y=10, so player.y should be 11
+        assert!((player.position.y - 11.0).abs() < 0.1, 
+            "Player should be at ground level (y=11), but is at y={}", player.position.y);
+    }
+
+    #[test]
+    fn test_player_collision_with_walls() {
+        let mut world = World::new(12345);
+        let mut chunk = Chunk::new(0, 0);
+        
+        // Create a floor and a wall
+        for x in 0..16 {
+            for z in 0..16 {
+                chunk.set_block(x, 10, z, BlockType::Dirt);
+            }
+        }
+        // Wall at x=12
+        for y in 11..15 {
+            chunk.set_block(12, y, 8, BlockType::Dirt);
+        }
+        world.chunks.insert((0, 0), chunk);
+        
+        // Place player very close to the wall, facing it
+        let mut player = Player::new(Vec3::new(11.5, 11.0, 8.0));
+        player.on_ground = true;
+        
+        let initial_x = player.position.x;
+        
+        // Try to move into the wall repeatedly
+        for _ in 0..10 {
+            player.velocity.x = 5.0;
+            player.apply_physics(0.1, &world);
+        }
+        
+        // Player should not have moved much (blocked by wall at x=12)
+        // Player bounding box extends 0.3 from center, so max x position before wall is about 12 - 0.3 = 11.7
+        assert!(player.position.x < 11.8, "Player should be blocked by wall, but is at x={}", player.position.x);
+    }
+
+    #[test]
+    fn test_player_step_up() {
+        let mut world = World::new(12345);
+        let mut chunk = Chunk::new(0, 0);
+        
+        // Create a floor with a single step up
+        for x in 0..16 {
+            for z in 0..16 {
+                chunk.set_block(x, 10, z, BlockType::Dirt);
+            }
+        }
+        // Single block step at x=12
+        chunk.set_block(12, 11, 8, BlockType::Dirt);
+        world.chunks.insert((0, 0), chunk);
+        
+        // Place player before the step
+        let mut player = Player::new(Vec3::new(11.0, 11.0, 8.0));
+        player.on_ground = true;
+        
+        // Move towards the step
+        player.velocity.x = 2.0;
+        player.apply_physics(0.1, &world);
+        
+        // Player should step up (or be blocked if step is too high)
+        // With STEP_HEIGHT of 0.5, a 1-block step should be climbable
+        assert!(player.position.x > 11.0, "Player should move forward");
+    }
+
+    #[test]
+    fn test_config_save_load() {
+        use crate::config::GameConfig;
+        use std::fs;
+        
+        let test_path = "/tmp/test_config.json";
+        
+        // Create and save a config
+        {
+            let mut config = GameConfig::default();
+            config.sensitivity = 0.01;
+            config.walk_speed = 5.0;
+            config.view_distance = 10;
+            config.save(test_path).expect("Failed to save config");
+        }
+        
+        // Load the config
+        {
+            let loaded_config = GameConfig::load(test_path);
+            assert_eq!(loaded_config.sensitivity, 0.01);
+            assert_eq!(loaded_config.walk_speed, 5.0);
+            assert_eq!(loaded_config.view_distance, 10);
+        }
+        
+        // Cleanup
+        fs::remove_file(test_path).ok();
+    }
+
+    #[test]
+    fn test_debug_info_update() {
+        use crate::debug::DebugInfo;
+        
+        let mut debug_info = DebugInfo::new();
+        let player = Player::new(Vec3::new(10.0, 20.0, 30.0));
+        
+        debug_info.update(&player, 60);
+        
+        assert_eq!(debug_info.fps, 60);
+        assert_eq!(debug_info.position, Vec3::new(10.0, 20.0, 30.0));
+        assert_eq!(debug_info.chunk_x, 0);
+        assert_eq!(debug_info.chunk_z, 1);
+    }
 }
 
