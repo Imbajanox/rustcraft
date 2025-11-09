@@ -2,6 +2,7 @@
 mod tests {
     use crate::block::BlockType;
     use crate::chunk::Chunk;
+    use crate::mesh::MeshBuilder;
     use crate::world::World;
     use crate::world_gen::WorldGenerator;
 
@@ -96,5 +97,38 @@ mod tests {
         for component in dirt_color {
             assert!(component >= 0.0 && component <= 1.0);
         }
+    }
+
+    #[test]
+    fn test_mesh_builder_accumulates_chunks() {
+        let mut world = World::new(12345);
+        let mut chunk1 = Chunk::new(0, 0);
+        let mut chunk2 = Chunk::new(1, 0);
+        
+        // Add a block to each chunk
+        chunk1.set_block(0, 0, 0, BlockType::Dirt);
+        chunk2.set_block(0, 0, 0, BlockType::Grass);
+        
+        world.chunks.insert((0, 0), chunk1);
+        world.chunks.insert((1, 0), chunk2);
+        
+        let mut mesh_builder = MeshBuilder::new();
+        mesh_builder.clear();
+        
+        // Build meshes for both chunks
+        if let Some(chunk) = world.get_chunk(0, 0) {
+            mesh_builder.build_chunk_mesh(chunk, &world);
+        }
+        
+        let vertices_after_first = mesh_builder.vertices.len();
+        assert!(vertices_after_first > 0, "First chunk should generate vertices");
+        
+        if let Some(chunk) = world.get_chunk(1, 0) {
+            mesh_builder.build_chunk_mesh(chunk, &world);
+        }
+        
+        let vertices_after_second = mesh_builder.vertices.len();
+        assert!(vertices_after_second > vertices_after_first, 
+                "Second chunk should add more vertices, not replace them");
     }
 }
