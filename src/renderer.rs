@@ -224,6 +224,7 @@ impl Renderer {
 
     pub fn update_mesh(&mut self, world: &World, camera: &Camera) {
         let mut mesh_builder = MeshBuilder::new();
+        mesh_builder.clear();
 
         let cam_chunk_x = (camera.position.x / 16.0).floor() as i32;
         let cam_chunk_z = (camera.position.z / 16.0).floor() as i32;
@@ -236,7 +237,7 @@ impl Renderer {
                 let chunk_z = cam_chunk_z + dz;
 
                 if let Some(chunk) = world.get_chunk(chunk_x, chunk_z) {
-                    mesh_builder.build_chunk_mesh(chunk);
+                    mesh_builder.build_chunk_mesh(chunk, world);
                 }
             }
         }
