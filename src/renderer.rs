@@ -221,7 +221,19 @@ impl Renderer {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None, // UI doesn't use depth
+
+            // IMPORTANT: UI is drawn into the same render pass that has a depth-stencil attachment.
+            // All pipelines used with a render pass that includes a depth-stencil must specify a
+            // compatible depth-stencil format. The UI doesn't need depth testing, so we set depth
+            // writes off and use CompareFunction::Always so it doesn't discard fragments.
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::Always,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,

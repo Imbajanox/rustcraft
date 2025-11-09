@@ -48,13 +48,6 @@ fn main() {
 
     let mut renderer = pollster::block_on(Renderer::new(window.clone()));
 
-    let aspect = renderer.size.width as f32 / renderer.size.height as f32;
-    let mut camera = Camera::new(aspect);
-    let mut player = Player::new(camera.position);
-    let mut input_handler = InputHandler::new();
-    let mut ui_renderer = UiRenderer::new();
-    let mut world_needs_update = false;
-
     let world_path = "world.dat";
     let mut world = World::load(world_path).unwrap_or_else(|_| {
         println!("Creating new world...");
@@ -62,6 +55,22 @@ fn main() {
     });
 
     let generator = WorldGenerator::new(world.seed);
+
+    // NEU: Höhe an der Spawn-Position (0, 0) berechnen
+    let spawn_height = generator.get_height(0.0, 0.0);
+    let initial_position = glam::Vec3::new(
+        0.0, 
+        spawn_height as f32 + 2.0, // 2.0 Blöcke über dem Terrain spawnen
+        0.0
+    );
+
+    let aspect = renderer.size.width as f32 / renderer.size.height as f32;
+    let mut camera = Camera::new(aspect);
+    let mut player = Player::new(initial_position); // Spieler mit korrigierter Höhe starten
+    camera.position = initial_position; // Kamera-Position synchronisieren
+    let mut input_handler = InputHandler::new();
+    let mut ui_renderer = UiRenderer::new();
+    let mut world_needs_update = false;
 
     // Generate initial chunks around spawn
     for x in -3..=3 {
@@ -113,9 +122,18 @@ fn main() {
                 input_handler.process_mouse_button(*state, *button);
                 
                 // Handle block interactions on mouse click
-                if *state == ElementState::Pressed
-                    && input_handler.handle_block_interaction(&camera, &mut world, &ui_renderer) {
-                    world_needs_update = true;
+                if *state == ElementState::Pressed {
+                    // Pass current player feet position to interaction handler so it can detect support removal.
+                    let (changed, removed_under_feet) = input_handler.handle_block_interaction(&camera, &mut world, &ui_renderer, player.position);
+                    if changed {
+                        world_needs_update = true;
+                    }
+                    if removed_under_feet {
+                        // Lost support -> start falling immediately
+                        player.on_ground = false;
+                        // optionally ensure some small downward velocity so we don't "stick" due to EPSILON checks:
+                        // player.velocity.y = player.velocity.y.min(-0.01);
+                    }
                 }
             }
             WindowEvent::MouseWheel { delta, .. } => {
