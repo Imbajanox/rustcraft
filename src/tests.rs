@@ -69,8 +69,10 @@ mod tests {
     #[test]
     fn test_world_save_load() {
         use std::fs;
-        let test_path = "/tmp/test_world.dat";
-        
+        // Use a platform-safe temporary path
+        let test_path_buf = std::env::temp_dir().join("rustcraft_test_world.dat");
+        let test_path = test_path_buf.to_str().unwrap();
+
         // Create and save a world
         {
             let mut world = World::new(54321);
@@ -78,16 +80,16 @@ mod tests {
             world.load_or_generate_chunk(0, 0, &generator);
             world.save(test_path).expect("Failed to save world");
         }
-        
+
         // Load the world
         {
             let loaded_world = World::load(test_path).expect("Failed to load world");
             assert_eq!(loaded_world.seed, 54321);
             assert!(loaded_world.get_chunk(0, 0).is_some());
         }
-        
+
         // Cleanup
-        fs::remove_file(test_path).ok();
+        fs::remove_file(test_path_buf).ok();
     }
 
     #[test]
@@ -443,8 +445,9 @@ mod tests {
         use crate::config::GameConfig;
         use std::fs;
         
-        let test_path = "/tmp/test_config.json";
-        
+        let test_path_buf = std::env::temp_dir().join("rustcraft_test_config.json");
+        let test_path = test_path_buf.to_str().unwrap();
+
         // Create and save a config
         {
             let mut config = GameConfig::default();
@@ -453,7 +456,7 @@ mod tests {
             config.view_distance = 10;
             config.save(test_path).expect("Failed to save config");
         }
-        
+
         // Load the config
         {
             let loaded_config = GameConfig::load(test_path);
@@ -461,9 +464,9 @@ mod tests {
             assert_eq!(loaded_config.walk_speed, 5.0);
             assert_eq!(loaded_config.view_distance, 10);
         }
-        
+
         // Cleanup
-        fs::remove_file(test_path).ok();
+        fs::remove_file(test_path_buf).ok();
     }
 
     #[test]

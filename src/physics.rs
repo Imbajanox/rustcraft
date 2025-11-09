@@ -1,6 +1,9 @@
 use glam::Vec3;
 use crate::world::World;
 
+// Small epsilon when converting AABB float bounds to integer block indices
+const RANGE_EPS: f32 = 1e-4;
+
 // Aabb and Player struct remain unchanged
 pub struct Player {
     pub position: Vec3,
@@ -71,6 +74,8 @@ impl Player {
         const GRAVITY: f32 = -25.0;
         const TERMINAL_VELOCITY: f32 = -50.0;
         const EPSILON: f32 = 0.001;
+        // Small epsilon used when converting floating AABB bounds to integer block coordinates
+        const RANGE_EPS: f32 = 1e-4;
         // Use the unified constant for horizontal calculations
         const HALF_WIDTH: f32 = Player::COLLISION_HALF_WIDTH; 
         const HEIGHT: f32 = Player::PLAYER_HEIGHT;
@@ -100,9 +105,9 @@ impl Player {
             };
 
             let min_x = support_aabb.min.x.floor() as i32;
-            let max_x = support_aabb.max.x.ceil() as i32;
+            let max_x = (support_aabb.max.x - RANGE_EPS).floor() as i32;
             let min_z = support_aabb.min.z.floor() as i32;
-            let max_z = support_aabb.max.z.ceil() as i32;
+            let max_z = (support_aabb.max.z - RANGE_EPS).floor() as i32;
             let check_y = (feet_y - EPSILON).floor() as i32;
 
             'support_loop: for x in min_x..=max_x {
@@ -163,9 +168,9 @@ impl Player {
             let desired_bb_proj = Aabb::from_position(Vec3::new(desired_position.x, prev_position.y, desired_position.z), HALF_WIDTH, HEIGHT);
             
             let swept_min_x = prev_bb.min.x.min(desired_bb_proj.min.x).floor() as i32;
-            let swept_max_x = prev_bb.max.x.max(desired_bb_proj.max.x).ceil() as i32;
+            let swept_max_x = (prev_bb.max.x.max(desired_bb_proj.max.x) - RANGE_EPS).floor() as i32;
             let swept_min_z = prev_bb.min.z.min(desired_bb_proj.min.z).floor() as i32;
-            let swept_max_z = prev_bb.max.z.max(desired_bb_proj.max.z).ceil() as i32;
+            let swept_max_z = (prev_bb.max.z.max(desired_bb_proj.max.z) - RANGE_EPS).floor() as i32;
             
             let check_min_y = (desired_feet_y - EPSILON).floor() as i32; 
             let check_max_y = (prev_feet_y + EPSILON).ceil() as i32;
@@ -236,11 +241,11 @@ impl Player {
                 let mut lowest_block_y_above: Option<i32> = None;
                 
                 let min_x = self.bounding_box.min.x.floor() as i32;
-                let max_x = self.bounding_box.max.x.ceil() as i32;
+                let max_x = (self.bounding_box.max.x - RANGE_EPS).floor() as i32;
                 let min_y = self.bounding_box.min.y.floor() as i32;
-                let max_y = self.bounding_box.max.y.ceil() as i32;
+                let max_y = (self.bounding_box.max.y - RANGE_EPS).floor() as i32;
                 let min_z = self.bounding_box.min.z.floor() as i32;
-                let max_z = self.bounding_box.max.z.ceil() as i32;
+                let max_z = (self.bounding_box.max.z - RANGE_EPS).floor() as i32;
 
                 for x in min_x..=max_x {
                     for z in min_z..=max_z {
@@ -352,11 +357,11 @@ impl Player {
     // check_collision remains unchanged as its logic is correct for an AABB check
     fn check_collision(&self, world: &World) -> bool {
         let min_x = self.bounding_box.min.x.floor() as i32;
-        let max_x = self.bounding_box.max.x.ceil() as i32;
+        let max_x = (self.bounding_box.max.x - RANGE_EPS).floor() as i32;
         let min_y = self.bounding_box.min.y.floor() as i32;
-        let max_y = self.bounding_box.max.y.ceil() as i32;
+        let max_y = (self.bounding_box.max.y - RANGE_EPS).floor() as i32;
         let min_z = self.bounding_box.min.z.floor() as i32;
-        let max_z = self.bounding_box.max.z.ceil() as i32;
+        let max_z = (self.bounding_box.max.z - RANGE_EPS).floor() as i32;
 
         for x in min_x..=max_x {
             for y in min_y..=max_y {

@@ -21,10 +21,47 @@ impl World {
     }
 
     pub fn load_or_generate_chunk(&mut self, x: i32, z: i32, generator: &WorldGenerator) {
-        self.chunks.entry((x, z)).or_insert_with(|| {
-            generator.generate_chunk(x, z)
-        });
+        use std::collections::hash_map::Entry;
+
+        let is_newly_generated = match self.chunks.entry((x, z)) {
+            Entry::Occupied(_) => {
+                // Der Chunk existiert bereits, nichts zu tun.
+                false
+            }, 
+            Entry::Vacant(entry) => {
+                // 1. Chunk generieren und Terrain/Blöcke füllen (OHNE Bäume!)
+                let new_chunk = generator.generate_chunk(x, z);
+                
+                // Chunk in die HashMap einfügen
+                entry.insert(new_chunk);
+
+                // Chunk wurde neu generiert
+                true 
+            }
+        };
+
+        // --- GLOBALER FEATURE-PLATZIERUNGS-SCHRITT ---
+        // Dies muss außerhalb des 'match' erfolgen, damit wir das gesamte World-Objekt 
+        // als mutable Referenz (self) verwenden können, um Blöcke global zu setzen.
+        if is_newly_generated {
+            // Bäume global platzieren, was die set_block_at Methode der World verwendet
+            // Die Bäume werden nun über Chunk-Grenzen hinweg in benachbarten Chunks gesetzt.
+            generator.place_trees(self, x, z);
+            
+            // --- Logik: Nachbarn als Dirty markieren ---
+            // Markiere alle 9 Chunks (den aktuellen und 8 Nachbarn) als 'dirty', da Bäume 
+            // sowohl in den aktuellen Chunk als auch in die Nachbarn hineinragen können.
+            for dx in -1..=1 {
+                for dz in -1..=1 {
+                    if let Some(neighbor_chunk) = self.chunks.get_mut(&(x + dx, z + dz)) {
+                        // Den Nachbarn markieren, um sein Mesh zu aktualisieren.
+                        neighbor_chunk.mark_dirty(); 
+                    }
+                }
+            }
+        }
     }
+
 
     pub fn get_chunk(&self, x: i32, z: i32) -> Option<&Chunk> {
         self.chunks.get(&(x, z))

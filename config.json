@@ -1,7 +1,7 @@
 {
   "sensitivity": 0.009,
   "walk_speed": 4.3,
-  "view_distance": 18,
+  "view_distance": 6,
   "fov": 90.0,
   "show_debug": true
 }

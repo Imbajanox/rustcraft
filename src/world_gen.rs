@@ -1,5 +1,6 @@
 use crate::block::BlockType;
 use crate::chunk::{Chunk, CHUNK_HEIGHT, CHUNK_SIZE};
+use crate::world::World;
 use noise::{NoiseFn, Perlin};
 
 // --- Neue Konstanten für erweiterte Weltgenerierung (FBM und Wasserlinie) ---
@@ -9,6 +10,7 @@ const NUM_OCTAVES: u32 = 4;
 const BASE_FREQUENCY: f64 = 0.008;
 const PERSISTENCE: f64 = 0.5; // Steuert, wie stark Details in höheren Oktaven beitragen (Rauheit)
 const LACUNARITY: f64 = 2.0; // Frequenzzunahme pro Oktave (Detaildichte)
+const MIN_TREE_DISTANCE: i32 = 6; 
 
 // Allgemeine Parameter
 pub const WATER_LEVEL: usize = 40; // Die Höhe der Meeresoberfläche
@@ -22,6 +24,23 @@ impl WorldGenerator {
         Self {
             noise: Perlin::new(seed),
         }
+    }
+
+    
+
+    pub fn should_generate_tree(&self, world_x: i32, world_z: i32) -> bool {
+        if world_x % MIN_TREE_DISTANCE != 0 || world_z % MIN_TREE_DISTANCE != 0 {
+            return false;
+        }
+
+        let height = self.get_height(world_x as f64, world_z as f64);
+        let top_block_is_grass = height > WATER_LEVEL + 2; 
+        let tree_noise = self.noise.get([world_x as f64 * 0.05, world_z as f64 * 0.05]);
+        
+        if top_block_is_grass && tree_noise > 0.6 {
+            return true;
+        }
+        false
     }
 
     // FBM (Fractal Brownian Motion) zur Generierung detaillierterer Höhe
@@ -62,7 +81,7 @@ impl WorldGenerator {
                 let world_z = (chunk_z * CHUNK_SIZE as i32 + z as i32) as f64;
 
                 let height = self.get_height(world_x, world_z);
-                let tree_noise = self.noise.get([world_x * 0.05, world_z * 0.05]);
+
 
                 // --- Verbesserte Biome- und Schichtlogik ---
                 
@@ -97,26 +116,86 @@ impl WorldGenerator {
 
                     chunk.set_block(x, y, z, block);
                 }
+            
+            }
+        }
+
+        chunk
+    }
+
+    pub fn place_trees(&self, world: &mut World, chunk_x: i32, chunk_z: i32) {
+        // Wir iterieren über alle Blöcke DIESES Chunks, um mögliche Baumzentren zu finden.
+        for x in 0..CHUNK_SIZE {
+            for z in 0..CHUNK_SIZE {
                 
-                // Baum-Platzierungslogik: Nur auf Grasland platzieren
-                if top_block == BlockType::Grass && tree_noise > 0.6 
-                    && x > 2 && x < CHUNK_SIZE - 2 && z > 2 && z < CHUNK_SIZE - 2 {
-                    // Baum-Stamm
-                    chunk.set_block(x, height, z, BlockType::Wood);
-                    chunk.set_block(x, height + 1, z, BlockType::Wood);
-                    chunk.set_block(x, height + 2, z, BlockType::Wood);
-                    chunk.set_block(x, height + 3, z, BlockType::Wood);
+                let world_x = chunk_x * CHUNK_SIZE as i32 + x as i32;
+                let world_z = chunk_z * CHUNK_SIZE as i32 + z as i32;
+                
+                // 1. DETERMINISTISCHE PRÜFUNG: Soll hier ein Baum wachsen?
+                if self.should_generate_tree(world_x, world_z) {
                     
-                    // Blätter
-                    for dx in -2_i32..=2 {
-                        for dz in -2_i32..=2 {
-                            for dy in 2..=4 {
-                                if (dx.abs() + dz.abs()) < 4 && height + dy < CHUNK_HEIGHT {
-                                    let leaf_x = (x as i32 + dx) as usize;
-                                    let leaf_z = (z as i32 + dz) as usize;
-                                    if leaf_x < CHUNK_SIZE && leaf_z < CHUNK_SIZE
-                                        && chunk.get_block(leaf_x, height + dy, leaf_z) == BlockType::Air {
-                                        chunk.set_block(leaf_x, height + dy, leaf_z, BlockType::Leaves);
+                    // --- KORREKTUR: Finde die tatsächliche Oberflächenhöhe im Chunk ---
+                    let mut tree_height_y: usize = 0;
+                    let mut found_surface = false;
+                    
+                    // Wir suchen von oben nach unten, um die y-Koordinate des Grasblocks zu finden.
+                    // Wir verwenden world.get_chunk, um den gerade generierten Chunk abzufragen.
+                    for y in (4..CHUNK_HEIGHT).rev() { 
+                        // Wir fragen den Block in dem Chunk ab, für den wir die Features generieren.
+                        let block = world.get_chunk(chunk_x, chunk_z)
+                                         .map_or(BlockType::Air, |c| c.get_block(x, y, z));
+                        
+                        if block != BlockType::Air && block != BlockType::Water {
+                            tree_height_y = y + 1; // Baum startet über diesem Block
+                            found_surface = true;
+                            break;
+                        }
+                    }
+
+                    if !found_surface || tree_height_y < 5 {
+                        continue; 
+                    }
+                    
+                    // --- PLATZIERUNGSLOGIK ---
+                    let trunk_height = 4;
+                    let top_y = tree_height_y + trunk_height;
+                    let top_y_i32 = top_y as i32;
+                    let tree_height_y_i32 = tree_height_y as i32;
+
+                    // 2. STAMM PLATZIEREN (Verwendet globale Koordinaten)
+                    for y in tree_height_y_i32..top_y_i32 {
+                        // set_block_at kümmert sich um die Chunk-Auflösung
+                        world.set_block_at(world_x, y, world_z, BlockType::Wood);
+                    }
+
+                    // 3. BLÄTTER PLATZIEREN (Verwendet globale Koordinaten)
+                    for dy in -2_i32..=1 { 
+                        let leaf_y = top_y_i32 + dy; 
+                        
+                        // Hier setzen wir keinen y-Grenzwert, da set_block_at das tut
+                        
+                        let radius: i32 = match dy {
+                            1 => 0, 0 => 1, _ => 2,
+                        };
+
+                        for dx in -radius..=radius {
+                            for dz in -radius..=radius {
+                                
+                                // Eckblöcke im untersten Blattbereich entfernen
+                                if radius == 2 && dx.abs() == 2 && dz.abs() == 2 { continue; }
+
+                                let leaf_x = world_x + dx;
+                                let leaf_z = world_z + dz;
+
+                                // Stamm-Check
+                                if dx == 0 && dz == 0 && leaf_y >= tree_height_y_i32 && leaf_y < top_y_i32 {
+                                    continue; // Wir überspringen den Stamm
+                                }
+                                
+                                // Nur setzen, wenn es Air, Leaves oder Water ist (oder ein anderer nicht-Stamm-Block)
+                                if let Some(current_block) = world.get_block_at(leaf_x, leaf_y, leaf_z) {
+                                    if current_block != BlockType::Wood {
+                                        world.set_block_at(leaf_x, leaf_y, leaf_z, BlockType::Leaves);
                                     }
                                 }
                             }
@@ -125,7 +204,5 @@ impl WorldGenerator {
                 }
             }
         }
-
-        chunk
     }
 }
