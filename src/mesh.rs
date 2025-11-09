@@ -1,6 +1,7 @@
 use crate::block::BlockType;
 use crate::chunk::{Chunk, CHUNK_HEIGHT, CHUNK_SIZE};
 use crate::vertex::Vertex;
+use crate::world::World;
 
 pub struct MeshBuilder {
     pub vertices: Vec<Vertex>,
@@ -15,10 +16,43 @@ impl MeshBuilder {
         }
     }
 
-    pub fn build_chunk_mesh(&mut self, chunk: &Chunk) {
+    pub fn clear(&mut self) {
         self.vertices.clear();
         self.indices.clear();
+    }
 
+    fn get_block_at(&self, world: &World, chunk: &Chunk, cx: usize, cy: usize, cz: usize, dx: i32, dy: i32, dz: i32) -> BlockType {
+        let x = cx as i32 + dx;
+        let y = cy as i32 + dy;
+        let z = cz as i32 + dz;
+
+        // Check if still within current chunk
+        if x >= 0 && x < CHUNK_SIZE as i32 && y >= 0 && y < CHUNK_HEIGHT as i32 && z >= 0 && z < CHUNK_SIZE as i32 {
+            return chunk.get_block(x as usize, y as usize, z as usize);
+        }
+
+        // Check if out of world height bounds
+        if y < 0 || y >= CHUNK_HEIGHT as i32 {
+            return BlockType::Air;
+        }
+
+        // Calculate which chunk the neighbor is in
+        let world_x = chunk.x * CHUNK_SIZE as i32 + x;
+        let world_z = chunk.z * CHUNK_SIZE as i32 + z;
+        let neighbor_chunk_x = world_x.div_euclid(CHUNK_SIZE as i32);
+        let neighbor_chunk_z = world_z.div_euclid(CHUNK_SIZE as i32);
+        let local_x = world_x.rem_euclid(CHUNK_SIZE as i32) as usize;
+        let local_z = world_z.rem_euclid(CHUNK_SIZE as i32) as usize;
+
+        // Get block from neighbor chunk
+        if let Some(neighbor_chunk) = world.get_chunk(neighbor_chunk_x, neighbor_chunk_z) {
+            neighbor_chunk.get_block(local_x, y as usize, local_z)
+        } else {
+            BlockType::Air
+        }
+    }
+
+    pub fn build_chunk_mesh(&mut self, chunk: &Chunk, world: &World) {
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_HEIGHT {
                 for z in 0..CHUNK_SIZE {
@@ -34,6 +68,7 @@ impl MeshBuilder {
                             world_z,
                             block,
                             chunk,
+                            world,
                             x,
                             y,
                             z,
@@ -52,6 +87,7 @@ impl MeshBuilder {
         z: f32,
         block: BlockType,
         chunk: &Chunk,
+        world: &World,
         cx: usize,
         cy: usize,
         cz: usize,
@@ -59,7 +95,7 @@ impl MeshBuilder {
         let color = block.get_color();
 
         // Top face
-        if cy + 1 >= CHUNK_HEIGHT || chunk.get_block(cx, cy + 1, cz).is_transparent() {
+        if self.get_block_at(world, chunk, cx, cy, cz, 0, 1, 0).is_transparent() {
             self.add_face(
                 x,
                 y + 1.0,
@@ -72,7 +108,7 @@ impl MeshBuilder {
         }
 
         // Bottom face
-        if cy == 0 || chunk.get_block(cx, cy - 1, cz).is_transparent() {
+        if self.get_block_at(world, chunk, cx, cy, cz, 0, -1, 0).is_transparent() {
             self.add_face(
                 x,
                 y,
@@ -85,7 +121,7 @@ impl MeshBuilder {
         }
 
         // Front face (+Z)
-        if cz + 1 >= CHUNK_SIZE || chunk.get_block(cx, cy, cz + 1).is_transparent() {
+        if self.get_block_at(world, chunk, cx, cy, cz, 0, 0, 1).is_transparent() {
             self.add_face(
                 x,
                 y,
@@ -98,7 +134,7 @@ impl MeshBuilder {
         }
 
         // Back face (-Z)
-        if cz == 0 || chunk.get_block(cx, cy, cz - 1).is_transparent() {
+        if self.get_block_at(world, chunk, cx, cy, cz, 0, 0, -1).is_transparent() {
             self.add_face(
                 x,
                 y,
@@ -111,7 +147,7 @@ impl MeshBuilder {
         }
 
         // Right face (+X)
-        if cx + 1 >= CHUNK_SIZE || chunk.get_block(cx + 1, cy, cz).is_transparent() {
+        if self.get_block_at(world, chunk, cx, cy, cz, 1, 0, 0).is_transparent() {
             self.add_face(
                 x + 1.0,
                 y,
@@ -124,7 +160,7 @@ impl MeshBuilder {
         }
 
         // Left face (-X)
-        if cx == 0 || chunk.get_block(cx - 1, cy, cz).is_transparent() {
+        if self.get_block_at(world, chunk, cx, cy, cz, -1, 0, 0).is_transparent() {
             self.add_face(
                 x,
                 y,
