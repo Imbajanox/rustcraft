@@ -193,21 +193,26 @@ impl MeshBuilder {
 
         let base_idx = self.vertices.len() as u32;
 
+        // Define UV coordinates for a face (0,0) is bottom-left, (1,1) is top-right
         self.vertices.push(Vertex {
             position: [x, y, z],
             color,
+            tex_coords: [0.0, 0.0],
         });
         self.vertices.push(Vertex {
             position: [x + u[0], y + u[1], z + u[2]],
             color,
+            tex_coords: [1.0, 0.0],
         });
         self.vertices.push(Vertex {
             position: [x + u[0] + v[0], y + u[1] + v[1], z + u[2] + v[2]],
             color,
+            tex_coords: [1.0, 1.0],
         });
         self.vertices.push(Vertex {
             position: [x + v[0], y + v[1], z + v[2]],
             color,
+            tex_coords: [0.0, 1.0],
         });
 
         // Two triangles per face
