@@ -133,4 +133,51 @@ mod tests {
         assert!(vertices_after_second > vertices_after_first, 
                 "Second chunk should add more vertices, not replace them");
     }
+
+    #[test]
+    fn test_block_face_generation() {
+        let mut world = World::new(12345);
+        let mut chunk = Chunk::new(0, 0);
+        
+        // Create a single isolated block in the air
+        chunk.set_block(5, 10, 5, BlockType::Dirt);
+        world.chunks.insert((0, 0), chunk);
+        
+        let mut mesh_builder = MeshBuilder::new();
+        mesh_builder.clear();
+        
+        if let Some(chunk) = world.get_chunk(0, 0) {
+            mesh_builder.build_chunk_mesh(chunk, &world);
+        }
+        
+        // An isolated block should have 6 faces, each with 4 vertices
+        // Total: 6 * 4 = 24 vertices
+        assert_eq!(mesh_builder.vertices.len(), 24, 
+                   "Isolated block should have 24 vertices (6 faces × 4 vertices)");
+        
+        // Each face has 2 triangles, each triangle has 3 indices
+        // Total: 6 * 2 * 3 = 36 indices
+        assert_eq!(mesh_builder.indices.len(), 36,
+                   "Isolated block should have 36 indices (6 faces × 2 triangles × 3 indices)");
+        
+        // Verify top face is at y=11 (block at y=10, top face at y+1)
+        let mut has_top_face = false;
+        for vertex in &mesh_builder.vertices {
+            if (vertex.position[1] - 11.0).abs() < 0.01 {
+                has_top_face = true;
+                break;
+            }
+        }
+        assert!(has_top_face, "Should have vertices at top face position (y=11)");
+        
+        // Verify bottom face is at y=10 (block at y=10, bottom face at y)
+        let mut has_bottom_face = false;
+        for vertex in &mesh_builder.vertices {
+            if (vertex.position[1] - 10.0).abs() < 0.01 {
+                has_bottom_face = true;
+                break;
+            }
+        }
+        assert!(has_bottom_face, "Should have vertices at bottom face position (y=10)");
+    }
 }
