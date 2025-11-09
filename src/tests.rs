@@ -5,6 +5,9 @@ mod tests {
     use crate::mesh::MeshBuilder;
     use crate::world::World;
     use crate::world_gen::WorldGenerator;
+    use crate::physics::{Player, AABB};
+    use crate::raycast::raycast;
+    use glam::Vec3;
 
     #[test]
     fn test_block_types() {
@@ -179,5 +182,110 @@ mod tests {
             }
         }
         assert!(has_bottom_face, "Should have vertices at bottom face position (y=10)");
+    }
+
+    #[test]
+    fn test_player_creation() {
+        let player = Player::new(Vec3::new(0.0, 10.0, 0.0));
+        assert_eq!(player.position, Vec3::new(0.0, 10.0, 0.0));
+        assert_eq!(player.velocity, Vec3::ZERO);
+        assert!(!player.on_ground);
+    }
+
+    #[test]
+    fn test_player_jump() {
+        let mut player = Player::new(Vec3::new(0.0, 10.0, 0.0));
+        player.on_ground = true;
+        player.jump();
+        assert!(player.velocity.y > 0.0, "Jump should give upward velocity");
+        assert!(!player.on_ground, "Player should not be on ground after jump");
+    }
+
+    #[test]
+    fn test_player_cant_jump_in_air() {
+        let mut player = Player::new(Vec3::new(0.0, 10.0, 0.0));
+        player.on_ground = false;
+        player.jump();
+        assert_eq!(player.velocity.y, 0.0, "Can't jump while in air");
+    }
+
+    #[test]
+    fn test_aabb_intersection() {
+        let box1 = AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0));
+        let box2 = AABB::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5));
+        let box3 = AABB::new(Vec3::new(2.0, 2.0, 2.0), Vec3::new(3.0, 3.0, 3.0));
+
+        assert!(box1.intersects(&box2), "Overlapping boxes should intersect");
+        assert!(box2.intersects(&box1), "Intersection should be symmetric");
+        assert!(!box1.intersects(&box3), "Separated boxes should not intersect");
+    }
+
+    #[test]
+    fn test_world_get_block_at() {
+        let mut world = World::new(12345);
+        let generator = WorldGenerator::new(12345);
+        
+        world.load_or_generate_chunk(0, 0, &generator);
+        
+        // Test getting a block at world coordinates
+        let block = world.get_block_at(0, 10, 0);
+        assert!(block.is_some(), "Should get a block from loaded chunk");
+        
+        // Test getting a block from unloaded chunk
+        let block = world.get_block_at(1000, 10, 1000);
+        assert!(block.is_none(), "Should return None for unloaded chunk");
+    }
+
+    #[test]
+    fn test_world_set_block_at() {
+        let mut world = World::new(12345);
+        let generator = WorldGenerator::new(12345);
+        
+        world.load_or_generate_chunk(0, 0, &generator);
+        
+        // Set a block
+        let success = world.set_block_at(5, 20, 5, BlockType::Planks);
+        assert!(success, "Should successfully set block in loaded chunk");
+        
+        // Verify it was set
+        let block = world.get_block_at(5, 20, 5);
+        assert_eq!(block, Some(BlockType::Planks), "Block should be set to Planks");
+        
+        // Try setting in unloaded chunk
+        let success = world.set_block_at(1000, 20, 1000, BlockType::Dirt);
+        assert!(!success, "Should fail to set block in unloaded chunk");
+    }
+
+    #[test]
+    fn test_raycast_hit() {
+        let mut world = World::new(12345);
+        let mut chunk = Chunk::new(0, 0);
+        
+        // Place a block at (5, 10, 5)
+        chunk.set_block(5, 10, 5, BlockType::Dirt);
+        world.chunks.insert((0, 0), chunk);
+        
+        // Raycast from above the block downward
+        let origin = Vec3::new(5.5, 15.0, 5.5);
+        let direction = Vec3::new(0.0, -1.0, 0.0);
+        
+        let result = raycast(origin, direction, 10.0, &world);
+        
+        assert!(result.hit, "Ray should hit the block");
+        assert_eq!(result.position, Some((5, 10, 5)), "Should hit the correct block");
+    }
+
+    #[test]
+    fn test_raycast_miss() {
+        let world = World::new(12345);
+        
+        // Raycast in empty world
+        let origin = Vec3::new(5.5, 15.0, 5.5);
+        let direction = Vec3::new(0.0, -1.0, 0.0);
+        
+        let result = raycast(origin, direction, 3.0, &world);
+        
+        assert!(!result.hit, "Ray should not hit anything in empty world");
+        assert_eq!(result.position, None, "Should have no hit position");
     }
 }

@@ -9,15 +9,18 @@ A Minecraft-like voxel game prototype built in Rust with procedural world genera
 - **7 Block Types**: Dirt, Sand, Grass, Wood, Leaves, Planks, and Glass
 - **Procedural World Generation**: Infinite terrain with hills, valleys, and trees
 - **World Saving**: Automatically saves world state when exiting
-- **First-Person Camera**: WASD movement and mouse look controls
+- **First-Person Camera**: WASD movement with physics-based controls
+- **Physics System**: Gravity, jumping, and collision detection
+- **Block Interaction**: Place and destroy blocks with mouse clicks
 - **Chunk-based Rendering**: Efficient rendering with culling of hidden faces
 
 ## Controls
 
 - **W/A/S/D**: Move forward/left/backward/right
-- **Space**: Move up
-- **Left Shift**: Move down
-- **Left Mouse Button**: Hold and move mouse to look around
+- **Space**: Jump (when on ground)
+- **Mouse Movement**: Look around (cursor is automatically grabbed)
+- **Left Mouse Button**: Destroy block
+- **Right Mouse Button**: Place block
 - **Escape**: Save and quit
 
 ## Running on Windows
