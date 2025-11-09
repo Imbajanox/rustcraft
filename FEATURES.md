@@ -127,20 +127,36 @@ rustcraft/
 
 ## Statistics
 - **Total Lines of Code**: ~1,170 lines of Rust
-- **Number of Modules**: 11
-- **Number of Tests**: 7
+- **Number of Modules**: 12
+- **Number of Tests**: 32
 - **Dependencies**: 8 main crates
 - **Compilation Time**: ~1-2 minutes (first build)
 - **Binary Size**: ~5-10 MB (release build)
 
+## Recent Enhancements
+
+### ✅ Inventory System (v0.2.0)
+- Complete Minecraft-like inventory system implemented
+- 9-slot toolbar for quick access
+- 27-slot storage for additional items
+- Item stacking with max stack size of 64
+- Destroyed blocks automatically added to inventory
+- Placing blocks removes items from inventory
+- Visual UI with item count indicators
+- Press 'E' to toggle full inventory panel
+- Mouse wheel to select toolbar slots
+- Inventory persists with world save/load
+- 7 comprehensive tests for inventory functionality
+
 ## Future Enhancement Possibilities
-While not required for the prototype, the codebase supports:
-- Block placement/destruction
+While the core features are implemented, the codebase supports:
+- ~~Block placement/destruction~~ ✅ Implemented
+- ~~Inventory system~~ ✅ Implemented
+- **Drag-and-drop inventory management** (Planned)
 - More block types
 - Improved terrain generation
 - Multiplayer support
 - Texture mapping
 - Lighting system
-- Physics and collision
-- Inventory system
 - Crafting mechanics
+- Hotbar number key selection (1-9)

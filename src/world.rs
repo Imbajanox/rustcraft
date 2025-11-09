@@ -1,5 +1,6 @@
 use crate::block::BlockType;
 use crate::chunk::{Chunk, CHUNK_SIZE, CHUNK_HEIGHT};
+use crate::inventory::Inventory;
 use crate::world_gen::WorldGenerator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -10,6 +11,7 @@ use std::path::Path;
 pub struct World {
     pub chunks: HashMap<(i32, i32), Chunk>,
     pub seed: u32,
+    pub inventory: Inventory,
 }
 
 impl World {
@@ -17,6 +19,7 @@ impl World {
         Self {
             chunks: HashMap::new(),
             seed,
+            inventory: Inventory::with_starter_items(),
         }
     }
 

@@ -4,6 +4,7 @@ mod chunk;
 mod config;
 mod debug;
 mod input;
+mod inventory;
 mod mesh;
 mod physics;
 mod raycast;
@@ -105,6 +106,8 @@ fn main() {
     }
 
     // Initial mesh build
+    ui_renderer.build_toolbar(&world.inventory);
+    ui_renderer.sync_selected_block(&world.inventory);
     renderer.update_mesh(&mut world, &camera, view_dist);
     renderer.update_ui(&ui_renderer);
 
@@ -156,6 +159,17 @@ fn main() {
                         config.show_debug = !config.show_debug;
                     }
                 }
+                
+                // Toggle inventory with E
+                if let PhysicalKey::Code(KeyCode::KeyE) = event.physical_key {
+                    if event.state == ElementState::Pressed {
+                        ui_renderer.toggle_inventory();
+                        // Rebuild UI when toggling inventory
+                        ui_renderer.build_toolbar(&world.inventory);
+                        ui_renderer.build_inventory(&world.inventory);
+                        renderer.update_ui(&ui_renderer);
+                    }
+                }
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 input_handler.process_mouse_button(*state, *button);
@@ -166,6 +180,13 @@ fn main() {
                     let (changed, removed_under_feet) = input_handler.handle_block_interaction(&camera, &mut world, &ui_renderer, player.position);
                     if changed {
                         world_needs_update = true;
+                        // Update UI to reflect inventory changes
+                        ui_renderer.build_toolbar(&world.inventory);
+                        if ui_renderer.is_inventory_open() {
+                            ui_renderer.build_inventory(&world.inventory);
+                        }
+                        ui_renderer.sync_selected_block(&world.inventory);
+                        renderer.update_ui(&ui_renderer);
                     }
                     if removed_under_feet {
                         // Lost support -> start falling immediately
@@ -179,19 +200,27 @@ fn main() {
                 match delta {
                     MouseScrollDelta::LineDelta(_x, y) => {
                         if *y > 0.0 {
-                            ui_renderer.next_block();
+                            world.inventory.prev_slot();
+                            ui_renderer.sync_selected_block(&world.inventory);
+                            ui_renderer.build_toolbar(&world.inventory);
                             renderer.update_ui(&ui_renderer);
                         } else if *y < 0.0 {
-                            ui_renderer.prev_block();
+                            world.inventory.next_slot();
+                            ui_renderer.sync_selected_block(&world.inventory);
+                            ui_renderer.build_toolbar(&world.inventory);
                             renderer.update_ui(&ui_renderer);
                         }
                     }
                     MouseScrollDelta::PixelDelta(pos) => {
                         if pos.y > 0.0 {
-                            ui_renderer.next_block();
+                            world.inventory.prev_slot();
+                            ui_renderer.sync_selected_block(&world.inventory);
+                            ui_renderer.build_toolbar(&world.inventory);
                             renderer.update_ui(&ui_renderer);
                         } else if pos.y < 0.0 {
-                            ui_renderer.prev_block();
+                            world.inventory.next_slot();
+                            ui_renderer.sync_selected_block(&world.inventory);
+                            ui_renderer.build_toolbar(&world.inventory);
                             renderer.update_ui(&ui_renderer);
                         }
                     }

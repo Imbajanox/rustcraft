@@ -163,6 +163,9 @@ pub struct Renderer {
     toolbar_vertex_buffer: Option<wgpu::Buffer>,
     toolbar_index_buffer: Option<wgpu::Buffer>,
     toolbar_num_indices: u32,
+    inventory_vertex_buffer: Option<wgpu::Buffer>,
+    inventory_index_buffer: Option<wgpu::Buffer>,
+    inventory_num_indices: u32,
     chunk_mesh_cache: HashMap<(i32, i32), ChunkMesh>,
 }
 
@@ -447,6 +450,9 @@ impl Renderer {
             toolbar_vertex_buffer: None,
             toolbar_index_buffer: None,
             toolbar_num_indices: 0,
+            inventory_vertex_buffer: None,
+            inventory_index_buffer: None,
+            inventory_num_indices: 0,
             chunk_mesh_cache: HashMap::new(),
         }
     }
@@ -626,6 +632,33 @@ impl Renderer {
             );
             self.toolbar_num_indices = toolbar_inds.len() as u32;
         }
+
+        // Update inventory buffers
+        let (inventory_verts, inventory_inds) = ui.get_inventory_buffers();
+        if !inventory_verts.is_empty() {
+            self.inventory_vertex_buffer = Some(
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Inventory Vertex Buffer"),
+                        contents: bytemuck::cast_slice(inventory_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    }),
+            );
+            self.inventory_index_buffer = Some(
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Inventory Index Buffer"),
+                        contents: bytemuck::cast_slice(inventory_inds),
+                        usage: wgpu::BufferUsages::INDEX,
+                    }),
+            );
+            self.inventory_num_indices = inventory_inds.len() as u32;
+        } else {
+            // Clear inventory buffers when inventory is closed
+            self.inventory_vertex_buffer = None;
+            self.inventory_index_buffer = None;
+            self.inventory_num_indices = 0;
+        }
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -691,6 +724,15 @@ impl Renderer {
                 render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 render_pass.draw_indexed(0..self.toolbar_num_indices, 0, 0..1);
+            }
+
+            // Render inventory (if open)
+            if let (Some(vertex_buffer), Some(index_buffer)) =
+                (&self.inventory_vertex_buffer, &self.inventory_index_buffer)
+            {
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.inventory_num_indices, 0, 0..1);
             }
 
             // Render crosshair

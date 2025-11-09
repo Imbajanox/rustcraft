@@ -2,13 +2,20 @@ This will be a Minecraft like Voxel game made in Rust
 
 # Rustcraft - Voxel Game Prototype
 
-A Minecraft-like voxel game prototype built in Rust with procedural world generation, multiple block types, and first-person controls.
+A Minecraft-like voxel game prototype built in Rust with procedural world generation, multiple block types, inventory system, and first-person controls.
 
 ## Features
 
 - **7 Block Types**: Dirt, Sand, Grass, Wood, Leaves, Planks, and Glass
+- **Inventory System**: Minecraft-like inventory with toolbar and storage
+  - 9-slot toolbar displayed at bottom of screen
+  - 27-slot storage accessible via inventory panel
+  - Item stacking (max 64 per stack)
+  - Destroyed blocks automatically added to inventory
+  - Place blocks from your inventory
+  - Visual item count indicators
 - **Procedural World Generation**: Infinite terrain with hills, valleys, and trees
-- **World Saving**: Automatically saves world state when exiting
+- **World Saving**: Automatically saves world state and inventory when exiting
 - **First-Person Camera**: WASD movement with physics-based controls
 - **Physics System**: Gravity, jumping, and collision detection
 - **Block Interaction**: Place and destroy blocks with mouse clicks
@@ -19,9 +26,10 @@ A Minecraft-like voxel game prototype built in Rust with procedural world genera
 - **W/A/S/D**: Move forward/left/backward/right
 - **Space**: Jump (when on ground)
 - **Mouse Movement**: Look around (cursor is automatically grabbed)
-- **Mouse Wheel**: Select block type to place
-- **Left Mouse Button**: Destroy block
-- **Right Mouse Button**: Place block
+- **Mouse Wheel**: Scroll through toolbar slots to select block type
+- **Left Mouse Button**: Destroy block (adds to inventory)
+- **Right Mouse Button**: Place block (removes from inventory)
+- **E**: Toggle inventory panel
 - **F3**: Toggle debug mode (shows detailed info in console)
 - **Escape**: Save and quit
 
