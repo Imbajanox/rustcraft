@@ -61,6 +61,7 @@ impl Player {
     pub fn apply_physics(&mut self, delta_time: f32, world: &World) {
         const GRAVITY: f32 = -25.0;
         const TERMINAL_VELOCITY: f32 = -50.0;
+        const EPSILON: f32 = 0.001;
 
         // Apply gravity
         if !self.on_ground {
@@ -70,55 +71,63 @@ impl Player {
             }
         }
 
-        // Apply velocity with collision detection
-        let new_position = self.position + self.velocity * delta_time;
-
-        // Check Y collision (vertical)
-        self.position.y = new_position.y;
+        // Calculate target position
+        let desired_position = self.position + self.velocity * delta_time;
+        
+        // Handle Y axis (vertical) separately
+        self.position.y = desired_position.y;
         self.update_bounding_box();
         
-        let y_collision = self.check_collision(world);
-        if y_collision {
+        if self.check_collision(world) {
             if self.velocity.y < 0.0 {
-                // Hit ground
+                // Falling - snap to ground smoothly
                 self.on_ground = true;
                 self.velocity.y = 0.0;
-                // Snap to block top
-                let block_y = self.position.y.floor();
-                self.position.y = block_y + 1.0;
+                // Find the exact ground position
+                self.position.y = self.bounding_box.min.y.floor() + EPSILON;
             } else {
-                // Hit ceiling
+                // Rising - hit ceiling
                 self.velocity.y = 0.0;
-                let block_y = (self.position.y + 1.8).ceil();
-                self.position.y = block_y - 1.8;
+                self.position.y = (self.bounding_box.max.y.ceil() - 1.8) - EPSILON;
             }
+            self.update_bounding_box();
         } else {
             self.on_ground = false;
         }
 
-        // Check X collision (horizontal)
-        self.position.x = new_position.x;
+        // Handle X and Z (horizontal) with sliding
+        let old_x = self.position.x;
+        let old_z = self.position.z;
+        
+        // Try full movement
+        self.position.x = desired_position.x;
+        self.position.z = desired_position.z;
         self.update_bounding_box();
+        
         if self.check_collision(world) {
-            self.position.x = self.position.x.round();
+            // Full movement failed, try sliding along walls
+            
+            // Try moving only in X direction
+            self.position.x = desired_position.x;
+            self.position.z = old_z;
+            self.update_bounding_box();
+            
             if self.check_collision(world) {
-                // Revert X movement
-                self.position.x -= self.velocity.x * delta_time;
+                // X movement blocked, reset X
+                self.position.x = old_x;
             }
-        }
-
-        // Check Z collision (horizontal)
-        self.position.z = new_position.z;
-        self.update_bounding_box();
-        if self.check_collision(world) {
-            self.position.z = self.position.z.round();
+            
+            // Try moving only in Z direction
+            self.position.z = desired_position.z;
+            self.update_bounding_box();
+            
             if self.check_collision(world) {
-                // Revert Z movement
-                self.position.z -= self.velocity.z * delta_time;
+                // Z movement blocked, reset Z
+                self.position.z = old_z;
             }
+            
+            self.update_bounding_box();
         }
-
-        self.update_bounding_box();
     }
 
     pub fn jump(&mut self) {
