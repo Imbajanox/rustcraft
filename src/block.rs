@@ -52,4 +52,22 @@ impl BlockType {
             BlockType::Stone => Some("textures/stone.png"),
         }
     }
+
+    /// Return (col, row) coordinates of the block's tile inside the atlas.
+    /// (0,0) is the left-bottom tile (adjust to your atlas orientation).
+    /// Update these indices to match your atlas layout.
+    pub fn atlas_coords(&self) -> Option<(u32, u32)> {
+        match self {
+            BlockType::Air => None,
+            BlockType::Dirt => Some((0, 0)),
+            BlockType::Sand => Some((1, 0)),
+            BlockType::Grass => Some((2, 0)),
+            BlockType::Wood => Some((3, 0)),
+            BlockType::Leaves => Some((4, 0)),
+            BlockType::Planks => Some((5, 0)),
+            BlockType::Glass => Some((6, 0)),
+            BlockType::Water => Some((7, 0)),
+            BlockType::Stone => Some((8, 0)),
+        }
+    }
 }

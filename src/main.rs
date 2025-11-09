@@ -31,6 +31,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::WindowBuilder;
 use world::World;
 use world_gen::WorldGenerator;
+use std::collections::HashMap;
 
 fn main() {
     env_logger::init();
@@ -91,6 +92,11 @@ fn main() {
     let mut ui_renderer = UiRenderer::new();
     let mut world_needs_update = false;
 
+    let mut last_camera_chunk = (
+        (camera.position.x / 16.0).floor() as i32,
+        (camera.position.z / 16.0).floor() as i32,
+    );
+
     // Generate initial chunks around spawn
     let view_dist = config.view_distance;
     for x in -view_dist..=view_dist {
@@ -99,6 +105,7 @@ fn main() {
         }
     }
 
+    // Initial mesh build
     renderer.update_mesh(&world, &camera);
     renderer.update_ui(&ui_renderer);
 

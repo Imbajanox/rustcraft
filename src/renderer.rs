@@ -479,7 +479,7 @@ impl Renderer {
         let cam_chunk_x = (camera.position.x / 16.0).floor() as i32;
         let cam_chunk_z = (camera.position.z / 16.0).floor() as i32;
 
-        let render_distance = 3;
+        let render_distance = 8;
 
         for dx in -render_distance..=render_distance {
             for dz in -render_distance..=render_distance {

@@ -8,6 +8,10 @@ pub struct MeshBuilder {
     pub indices: Vec<u32>,
 }
 
+const ATLAS_COLS: u32 = 9;      // number of tiles horizontally in atlas — set to your atlas layout
+const ATLAS_ROWS: u32 = 1;      // number of tiles vertically in atlas
+const TILE_PX: f32 = 16.0;
+
 impl MeshBuilder {
     pub fn new() -> Self {
         Self {
@@ -94,6 +98,7 @@ impl MeshBuilder {
         cz: usize,
     ) {
         let color = block.get_color();
+        let tile = block.atlas_coords().unwrap_or((0, 0));
 
         // Top face
         if self.get_block_at(world, chunk, cx, cy, cz, 0, 1, 0).is_transparent() {
@@ -105,6 +110,7 @@ impl MeshBuilder {
                 [1.0, 0.0, 0.0],
                 color,
                 1.0,
+                tile,
             );
         }
 
@@ -118,6 +124,7 @@ impl MeshBuilder {
                 [0.0, 0.0, 1.0],
                 color,
                 0.5,
+                tile,
             );
         }
 
@@ -131,6 +138,7 @@ impl MeshBuilder {
                 [0.0, 1.0, 0.0],
                 color,
                 0.8,
+                tile,
             );
         }
 
@@ -144,6 +152,7 @@ impl MeshBuilder {
                 [1.0, 0.0, 0.0],
                 color,
                 0.8,
+                tile,
             );
         }
 
@@ -157,6 +166,7 @@ impl MeshBuilder {
                 [0.0, 1.0, 0.0],
                 color,
                 0.7,
+                tile,
             );
         }
 
@@ -170,6 +180,7 @@ impl MeshBuilder {
                 [0.0, 1.0, 0.0],
                 color,
                 0.7,
+                tile,
             );
         }
     }
@@ -184,6 +195,7 @@ impl MeshBuilder {
         v: [f32; 3],
         base_color: [f32; 3],
         shade: f32,
+        tile: (u32, u32),
     ) {
         let color = [
             base_color[0] * shade,
@@ -191,28 +203,41 @@ impl MeshBuilder {
             base_color[2] * shade,
         ];
 
+        // compute UV rectangle for this tile
+        let tile_w = 1.0 / ATLAS_COLS as f32;
+        let tile_h = 1.0 / ATLAS_ROWS as f32;
+
+        // small inset in UV space to avoid bleeding from neighbors (0.5 texel)
+        let inset_u = 0.5 / (ATLAS_COLS as f32 * TILE_PX);
+        let inset_v = 0.5 / (ATLAS_ROWS as f32 * TILE_PX);
+
+        let u0 = tile.0 as f32 * tile_w + inset_u;
+        let v0 = tile.1 as f32 * tile_h + inset_v;
+        let u1 = u0 + tile_w - 2.0 * inset_u;
+        let v1 = v0 + tile_h - 2.0 * inset_v;
+
         let base_idx = self.vertices.len() as u32;
 
-        // Define UV coordinates for a face (0,0) is bottom-left, (1,1) is top-right
+        // Define UV coordinates for a face (bottom-left, bottom-right, top-right, top-left)
         self.vertices.push(Vertex {
             position: [x, y, z],
             color,
-            tex_coords: [0.0, 0.0],
+            tex_coords: [u0, v0],
         });
         self.vertices.push(Vertex {
             position: [x + u[0], y + u[1], z + u[2]],
             color,
-            tex_coords: [1.0, 0.0],
+            tex_coords: [u1, v0],
         });
         self.vertices.push(Vertex {
             position: [x + u[0] + v[0], y + u[1] + v[1], z + u[2] + v[2]],
             color,
-            tex_coords: [1.0, 1.0],
+            tex_coords: [u1, v1],
         });
         self.vertices.push(Vertex {
             position: [x + v[0], y + v[1], z + v[2]],
             color,
-            tex_coords: [0.0, 1.0],
+            tex_coords: [u0, v1],
         });
 
         // Two triangles per face
