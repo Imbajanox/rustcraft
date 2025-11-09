@@ -11,10 +11,12 @@ mod tests {
         assert!(BlockType::Dirt.is_solid());
         assert!(BlockType::Grass.is_solid());
         assert!(BlockType::Wood.is_solid());
+        assert!(BlockType::Water.is_solid());
         assert!(!BlockType::Air.is_solid());
         
         assert!(BlockType::Air.is_transparent());
         assert!(BlockType::Glass.is_transparent());
+        assert!(BlockType::Water.is_transparent());
         assert!(!BlockType::Dirt.is_transparent());
     }
 

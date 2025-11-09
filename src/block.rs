@@ -10,6 +10,7 @@ pub enum BlockType {
     Leaves,
     Planks,
     Glass,
+    Water,
 }
 
 impl BlockType {
@@ -18,7 +19,7 @@ impl BlockType {
     }
 
     pub fn is_transparent(&self) -> bool {
-        matches!(self, BlockType::Air | BlockType::Glass | BlockType::Leaves)
+        matches!(self, BlockType::Air | BlockType::Glass | BlockType::Leaves | BlockType::Water)
     }
 
     pub fn get_color(&self) -> [f32; 3] {
@@ -31,6 +32,7 @@ impl BlockType {
             BlockType::Leaves => [0.0, 0.39, 0.0],
             BlockType::Planks => [0.72, 0.52, 0.04],
             BlockType::Glass => [0.8, 0.9, 1.0],
+            BlockType::Water => [0.0, 0.4, 0.8],
         }
     }
 }

@@ -46,34 +46,39 @@ impl WorldGenerator {
                                 BlockType::Grass
                             }
                         }
-                    } else if y == height && height > 35 && tree_noise > 0.6 && x > 2 && x < CHUNK_SIZE - 2 && z > 2 && z < CHUNK_SIZE - 2 {
-                        // Place tree trunk
-                        chunk.set_block(x, y, z, BlockType::Wood);
-                        chunk.set_block(x, y + 1, z, BlockType::Wood);
-                        chunk.set_block(x, y + 2, z, BlockType::Wood);
-                        chunk.set_block(x, y + 3, z, BlockType::Wood);
-                        
-                        // Place leaves
-                        for dx in -2_i32..=2 {
-                            for dz in -2_i32..=2 {
-                                for dy in 2..=4 {
-                                    if (dx.abs() + dz.abs()) < 4 && y + dy < CHUNK_HEIGHT {
-                                        let leaf_x = (x as i32 + dx) as usize;
-                                        let leaf_z = (z as i32 + dz) as usize;
-                                        if leaf_x < CHUNK_SIZE && leaf_z < CHUNK_SIZE
-                                            && chunk.get_block(leaf_x, y + dy, leaf_z) == BlockType::Air {
-                                            chunk.set_block(leaf_x, y + dy, leaf_z, BlockType::Leaves);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        BlockType::Air
+                    } else if y < 32 {
+                        // Add water below water level
+                        BlockType::Water
                     } else {
                         BlockType::Air
                     };
 
                     chunk.set_block(x, y, z, block);
+                }
+                
+                // Place trees after terrain generation to avoid overwriting
+                if height > 35 && tree_noise > 0.6 && x > 2 && x < CHUNK_SIZE - 2 && z > 2 && z < CHUNK_SIZE - 2 {
+                    // Place tree trunk
+                    chunk.set_block(x, height, z, BlockType::Wood);
+                    chunk.set_block(x, height + 1, z, BlockType::Wood);
+                    chunk.set_block(x, height + 2, z, BlockType::Wood);
+                    chunk.set_block(x, height + 3, z, BlockType::Wood);
+                    
+                    // Place leaves
+                    for dx in -2_i32..=2 {
+                        for dz in -2_i32..=2 {
+                            for dy in 2..=4 {
+                                if (dx.abs() + dz.abs()) < 4 && height + dy < CHUNK_HEIGHT {
+                                    let leaf_x = (x as i32 + dx) as usize;
+                                    let leaf_z = (z as i32 + dz) as usize;
+                                    if leaf_x < CHUNK_SIZE && leaf_z < CHUNK_SIZE
+                                        && chunk.get_block(leaf_x, height + dy, leaf_z) == BlockType::Air {
+                                        chunk.set_block(leaf_x, height + dy, leaf_z, BlockType::Leaves);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
