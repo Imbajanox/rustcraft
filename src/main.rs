@@ -8,6 +8,9 @@ mod vertex;
 mod world;
 mod world_gen;
 
+#[cfg(test)]
+mod tests;
+
 use camera::Camera;
 use input::InputHandler;
 use renderer::Renderer;
