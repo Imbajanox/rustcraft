@@ -133,8 +133,8 @@ fn main() {
                 let cam_chunk_x = (camera.position.x / 16.0).floor() as i32;
                 let cam_chunk_z = (camera.position.z / 16.0).floor() as i32;
 
-                for dx in -3..=3 {
-                    for dz in -3..=3 {
+                for dx in -6..=6 {
+                    for dz in -6..=6 {
                         world.load_or_generate_chunk(cam_chunk_x + dx, cam_chunk_z + dz, &generator);
                     }
                 }

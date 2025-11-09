@@ -54,7 +54,7 @@ impl InputHandler {
     }
 
     pub fn update_camera(&mut self, camera: &mut Camera) {
-        let sensitivity = 0.002;
+        let sensitivity = 0.005;
 
         // Mouse look (no button hold required now)
         camera.yaw += self.mouse_delta.0 as f32 * sensitivity;
