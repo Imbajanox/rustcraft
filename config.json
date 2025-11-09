@@ -3,5 +3,5 @@
   "walk_speed": 4.3,
   "view_distance": 6,
   "fov": 70.0,
-  "show_debug": false
+  "show_debug": true
 }

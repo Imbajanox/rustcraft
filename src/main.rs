@@ -60,17 +60,7 @@ fn main() {
     window.set_cursor_visible(false);
 
     let mut renderer = pollster::block_on(Renderer::new(window.clone()));
-
-    let aspect = renderer.size.width as f32 / renderer.size.height as f32;
-    let mut camera = Camera::new(aspect);
-    camera.fov = config.fov.to_radians();
-    let mut player = Player::new(camera.position);
-    let mut input_handler = InputHandler::new();
-    input_handler.set_sensitivity(config.sensitivity);
-    input_handler.set_walk_speed(config.walk_speed);
-    let mut ui_renderer = UiRenderer::new();
     let mut debug_info = DebugInfo::new();
-    let mut world_needs_update = false;
 
     let world_path = "world.dat";
     let mut world = World::load(world_path).unwrap_or_else(|_| {
@@ -92,7 +82,12 @@ fn main() {
     let mut camera = Camera::new(aspect);
     let mut player = Player::new(initial_position); // Spieler mit korrigierter Höhe starten
     camera.position = initial_position; // Kamera-Position synchronisieren
+    camera.fov = config.fov.to_radians();
     let mut input_handler = InputHandler::new();
+
+    input_handler.set_sensitivity(config.sensitivity);
+    input_handler.set_walk_speed(config.walk_speed);
+
     let mut ui_renderer = UiRenderer::new();
     let mut world_needs_update = false;
 
