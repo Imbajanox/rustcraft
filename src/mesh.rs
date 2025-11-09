@@ -111,7 +111,7 @@ impl MeshBuilder {
         if self.get_block_at(world, chunk, cx, cy, cz, 0, -1, 0).is_transparent() {
             self.add_face(
                 x,
-                y,
+                y + 1.0,
                 z,
                 [1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0],
