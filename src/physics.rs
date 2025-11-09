@@ -251,11 +251,10 @@ impl Player {
                     for z in min_z..=max_z {
                         for y in min_y..=max_y {
                             if let Some(block_type) = world.get_block_at(x, y, z) {
-                                if block_type.is_solid() {
-                                    if lowest_block_y_above.map_or(true, |lb| y < lb) {
+                                if block_type.is_solid()
+                                    && lowest_block_y_above.is_none_or(|lb| y < lb) {
                                         lowest_block_y_above = Some(y);
                                     }
-                                }
                             }
                         }
                     }
@@ -274,10 +273,8 @@ impl Player {
                 self.position.y = prev_position.y;
             }
             self.update_bounding_box();
-        } else {
-            if self.velocity.y != 0.0 {
-                self.on_ground = false;
-            }
+        } else if self.velocity.y != 0.0 {
+            self.on_ground = false;
         }
         
         // --- 4. Handle horizontal movement with axis-separated resolution and step-up (Fixed step-up logic) ---

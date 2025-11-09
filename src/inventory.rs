@@ -96,31 +96,27 @@ impl Inventory {
         let mut remaining = amount;
 
         // First, try to add to existing stacks in toolbar
-        for slot in &mut self.toolbar {
-            if let Some(stack) = slot {
-                if stack.block_type == block_type && !stack.is_empty() {
-                    let can_add = stack.max_stack_size() - stack.count;
-                    let to_add = remaining.min(can_add);
-                    stack.count += to_add;
-                    remaining -= to_add;
-                    if remaining == 0 {
-                        return true;
-                    }
+        for stack in self.toolbar.iter_mut().flatten() {
+            if stack.block_type == block_type && !stack.is_empty() {
+                let can_add = stack.max_stack_size() - stack.count;
+                let to_add = remaining.min(can_add);
+                stack.count += to_add;
+                remaining -= to_add;
+                if remaining == 0 {
+                    return true;
                 }
             }
         }
 
         // Then try existing stacks in storage
-        for slot in &mut self.storage {
-            if let Some(stack) = slot {
-                if stack.block_type == block_type && !stack.is_empty() {
-                    let can_add = stack.max_stack_size() - stack.count;
-                    let to_add = remaining.min(can_add);
-                    stack.count += to_add;
-                    remaining -= to_add;
-                    if remaining == 0 {
-                        return true;
-                    }
+        for stack in self.storage.iter_mut().flatten() {
+            if stack.block_type == block_type && !stack.is_empty() {
+                let can_add = stack.max_stack_size() - stack.count;
+                let to_add = remaining.min(can_add);
+                stack.count += to_add;
+                remaining -= to_add;
+                if remaining == 0 {
+                    return true;
                 }
             }
         }
@@ -167,7 +163,7 @@ impl Inventory {
 
     /// Check if the selected slot has at least one item
     pub fn has_selected_item(&self) -> bool {
-        self.toolbar[self.selected_slot].as_ref().map_or(false, |s| s.count > 0)
+        self.toolbar[self.selected_slot].as_ref().is_some_and(|s| s.count > 0)
     }
 
     /// Move item from one slot to another
@@ -225,18 +221,14 @@ impl Inventory {
     /// Get total number of a specific block type in inventory
     pub fn count_block_type(&self, block_type: BlockType) -> u32 {
         let mut total = 0;
-        for slot in &self.toolbar {
-            if let Some(stack) = slot {
-                if stack.block_type == block_type {
-                    total += stack.count;
-                }
+        for stack in self.toolbar.iter().flatten() {
+            if stack.block_type == block_type {
+                total += stack.count;
             }
         }
-        for slot in &self.storage {
-            if let Some(stack) = slot {
-                if stack.block_type == block_type {
-                    total += stack.count;
-                }
+        for stack in self.storage.iter().flatten() {
+            if stack.block_type == block_type {
+                total += stack.count;
             }
         }
         total
