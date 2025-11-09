@@ -100,8 +100,8 @@ impl MeshBuilder {
                 x,
                 y + 1.0,
                 z,
-                [1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0],
                 color,
                 1.0,
             );
@@ -111,7 +111,7 @@ impl MeshBuilder {
         if self.get_block_at(world, chunk, cx, cy, cz, 0, -1, 0).is_transparent() {
             self.add_face(
                 x,
-                y + 1.0,
+                y,
                 z,
                 [1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0],
@@ -139,8 +139,8 @@ impl MeshBuilder {
                 x,
                 y,
                 z,
-                [1.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0],
+                [1.0, 0.0, 0.0],
                 color,
                 0.8,
             );
@@ -165,8 +165,8 @@ impl MeshBuilder {
                 x,
                 y,
                 z,
-                [0.0, 0.0, 1.0],
                 [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
                 color,
                 0.7,
             );
