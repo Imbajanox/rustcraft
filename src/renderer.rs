@@ -10,12 +10,17 @@ fn load_texture_atlas(
     queue: &wgpu::Queue,
 ) -> Result<(wgpu::Texture, wgpu::TextureView, wgpu::Sampler), String> {
     // Try to load texture atlas from textures directory
-    // For now, we'll load the dirt texture as a fallback
-    let texture_bytes = match std::fs::read("textures/dirt.png") {
+    let texture_bytes = match std::fs::read("textures/atlas.png") {
         Ok(bytes) => bytes,
         Err(_) => {
-            // If texture loading fails, create a simple 16x16 white texture as fallback
-            return create_fallback_texture(device, queue);
+            // Try individual texture as fallback
+            match std::fs::read("textures/dirt.png") {
+                Ok(bytes) => bytes,
+                Err(_) => {
+                    // If texture loading fails, create a simple 16x16 white texture as fallback
+                    return create_fallback_texture(device, queue);
+                }
+            }
         }
     };
 
