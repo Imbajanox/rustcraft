@@ -73,8 +73,4 @@ impl InputHandler {
             camera.position.y -= speed;
         }
     }
-
-    pub fn is_key_pressed(&self, key: KeyCode) -> bool {
-        self.keys_pressed.contains(&key)
-    }
 }

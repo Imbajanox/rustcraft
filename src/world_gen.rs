@@ -60,10 +60,9 @@ impl WorldGenerator {
                                     if (dx.abs() + dz.abs()) < 4 && y + dy < CHUNK_HEIGHT {
                                         let leaf_x = (x as i32 + dx) as usize;
                                         let leaf_z = (z as i32 + dz) as usize;
-                                        if leaf_x < CHUNK_SIZE && leaf_z < CHUNK_SIZE {
-                                            if chunk.get_block(leaf_x, y + dy, leaf_z) == BlockType::Air {
-                                                chunk.set_block(leaf_x, y + dy, leaf_z, BlockType::Leaves);
-                                            }
+                                        if leaf_x < CHUNK_SIZE && leaf_z < CHUNK_SIZE
+                                            && chunk.get_block(leaf_x, y + dy, leaf_z) == BlockType::Air {
+                                            chunk.set_block(leaf_x, y + dy, leaf_z, BlockType::Leaves);
                                         }
                                     }
                                 }

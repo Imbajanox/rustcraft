@@ -20,10 +20,9 @@ impl World {
     }
 
     pub fn load_or_generate_chunk(&mut self, x: i32, z: i32, generator: &WorldGenerator) {
-        if !self.chunks.contains_key(&(x, z)) {
-            let chunk = generator.generate_chunk(x, z);
-            self.chunks.insert((x, z), chunk);
-        }
+        self.chunks.entry((x, z)).or_insert_with(|| {
+            generator.generate_chunk(x, z)
+        });
     }
 
     pub fn get_chunk(&self, x: i32, z: i32) -> Option<&Chunk> {

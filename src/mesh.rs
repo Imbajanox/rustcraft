@@ -44,6 +44,7 @@ impl MeshBuilder {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_block_faces(
         &mut self,
         x: f32,
@@ -136,6 +137,7 @@ impl MeshBuilder {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_face(
         &mut self,
         x: f32,
