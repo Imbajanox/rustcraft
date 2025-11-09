@@ -105,47 +105,64 @@ impl InputHandler {
         }
     }
 
-    pub fn handle_block_interaction(&mut self, camera: &Camera, world: &mut World, ui: &crate::ui::UiRenderer, player_pos: glam::Vec3) -> (bool, bool) {
+    pub fn handle_block_interaction(&mut self, camera: &Camera, world: &mut World, _ui: &crate::ui::UiRenderer, player_pos: glam::Vec3) -> (bool, bool) {
         let mut world_changed = false;
         let mut removed_under_feet = false;
 
-        // Left click - destroy block
+        // Left click - destroy block and add to inventory
         if self.left_mouse_pressed {
             self.left_mouse_pressed = false; // Treat as single click
             let result = raycast(camera.position, camera.get_direction(), 5.0, world);
             if result.hit {
                 if let Some((x, y, z)) = result.position {
-                    let success = world.set_block_at(x, y, z, BlockType::Air);
-                    if success {
-                        world_changed = true;
+                    // Get the block type before destroying it
+                    if let Some(block_type) = world.get_block_at(x, y, z) {
+                        if block_type != BlockType::Air {
+                            let success = world.set_block_at(x, y, z, BlockType::Air);
+                            if success {
+                                // Add destroyed block to inventory
+                                world.inventory.add_item(block_type, 1);
+                                world_changed = true;
 
-                        // Check whether the removed block was directly under the player's feet.
-                        // Player's feet world coordinate is player_pos.y, block occupies [y, y+1).
-                        let foot_block_x = player_pos.x.floor() as i32;
-                        let foot_block_z = player_pos.z.floor() as i32;
-                        let feet_floor_y = player_pos.y.floor() as i32;
-                        // block is directly under feet if it's the block whose top is at feet_floor_y
-                        // i.e. block y == feet_floor_y - 1 and x/z cell matches footprint.
-                        if x == foot_block_x && z == foot_block_z && y == feet_floor_y - 1 {
-                            removed_under_feet = true;
+                                // Check whether the removed block was directly under the player's feet.
+                                // Player's feet world coordinate is player_pos.y, block occupies [y, y+1).
+                                let foot_block_x = player_pos.x.floor() as i32;
+                                let foot_block_z = player_pos.z.floor() as i32;
+                                let feet_floor_y = player_pos.y.floor() as i32;
+                                // block is directly under feet if it's the block whose top is at feet_floor_y
+                                // i.e. block y == feet_floor_y - 1 and x/z cell matches footprint.
+                                if x == foot_block_x && z == foot_block_z && y == feet_floor_y - 1 {
+                                    removed_under_feet = true;
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Right click - place block
+        // Right click - place block from inventory
         if self.right_mouse_pressed {
             self.right_mouse_pressed = false; // Treat as single click
-            let result = raycast(camera.position, camera.get_direction(), 5.0, world);
-            if result.hit {
-                if let (Some((x, y, z)), Some((nx, ny, nz))) = (result.position, result.normal) {
-                    // Place block at the adjacent position
-                    let place_x = x + nx;
-                    let place_y = y + ny;
-                    let place_z = z + nz;
-                    if world.set_block_at(place_x, place_y, place_z, ui.selected_block) {
-                        world_changed = true;
+            
+            // Check if player has the selected block in inventory
+            if world.inventory.has_selected_item() {
+                let result = raycast(camera.position, camera.get_direction(), 5.0, world);
+                if result.hit {
+                    if let (Some((x, y, z)), Some((nx, ny, nz))) = (result.position, result.normal) {
+                        // Place block at the adjacent position
+                        let place_x = x + nx;
+                        let place_y = y + ny;
+                        let place_z = z + nz;
+                        
+                        // Get the block type from inventory
+                        if let Some(block_type) = world.inventory.get_selected_block() {
+                            if world.set_block_at(place_x, place_y, place_z, block_type) {
+                                // Remove one block from inventory
+                                world.inventory.remove_selected_item(1);
+                                world_changed = true;
+                            }
+                        }
                     }
                 }
             }

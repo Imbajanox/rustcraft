@@ -294,47 +294,57 @@ mod tests {
     #[test]
     fn test_ui_renderer_creation() {
         use crate::ui::UiRenderer;
+        use crate::inventory::Inventory;
         
-        let ui = UiRenderer::new();
+        let mut ui = UiRenderer::new();
+        let inventory = Inventory::with_starter_items();
+        
         assert_eq!(ui.selected_block, BlockType::Dirt, "Default selected block should be Dirt");
         
         let (crosshair_verts, crosshair_inds) = ui.get_crosshair_buffers();
         assert!(!crosshair_verts.is_empty(), "Crosshair should have vertices");
         assert!(!crosshair_inds.is_empty(), "Crosshair should have indices");
         
+        // Build toolbar to test it
+        ui.build_toolbar(&inventory);
         let (toolbar_verts, toolbar_inds) = ui.get_toolbar_buffers();
-        assert!(!toolbar_verts.is_empty(), "Toolbar should have vertices");
-        assert!(!toolbar_inds.is_empty(), "Toolbar should have indices");
+        assert!(!toolbar_verts.is_empty(), "Toolbar should have vertices after build");
+        assert!(!toolbar_inds.is_empty(), "Toolbar should have indices after build");
     }
 
     #[test]
     fn test_ui_block_selection() {
         use crate::ui::UiRenderer;
+        use crate::inventory::Inventory;
         
         let mut ui = UiRenderer::new();
+        let mut inventory = Inventory::with_starter_items();
+        
+        // Sync with inventory
+        ui.sync_selected_block(&inventory);
         assert_eq!(ui.selected_block, BlockType::Dirt);
         
-        // Test next block
-        ui.next_block();
+        // Test next slot
+        inventory.next_slot();
+        ui.sync_selected_block(&inventory);
         assert_eq!(ui.selected_block, BlockType::Grass);
         
-        ui.next_block();
+        inventory.next_slot();
+        ui.sync_selected_block(&inventory);
         assert_eq!(ui.selected_block, BlockType::Sand);
         
-        // Test prev block
-        ui.prev_block();
+        // Test prev slot - should go back to Grass
+        inventory.prev_slot();
+        ui.sync_selected_block(&inventory);
         assert_eq!(ui.selected_block, BlockType::Grass);
         
-        ui.prev_block();
-        assert_eq!(ui.selected_block, BlockType::Dirt);
+        // Test wrapping
+        inventory.selected_slot = 0;
+        inventory.prev_slot();
+        assert_eq!(inventory.selected_slot, 8);
         
-        // Test wrapping from last to first
-        ui.prev_block();
-        assert_eq!(ui.selected_block, BlockType::Water);
-        
-        // Test wrapping from first to last (after going to first)
-        ui.next_block();
-        assert_eq!(ui.selected_block, BlockType::Dirt);
+        inventory.next_slot();
+        assert_eq!(inventory.selected_slot, 0);
     }
 
     #[test]
@@ -485,6 +495,135 @@ mod tests {
         assert_eq!(debug_info.position, Vec3::new(10.0, 20.0, 30.0));
         assert_eq!(debug_info.chunk_x, 0);
         assert_eq!(debug_info.chunk_z, 1);
+    }
+
+    #[test]
+    fn test_inventory_creation() {
+        use crate::inventory::Inventory;
+        
+        let inventory = Inventory::new();
+        assert_eq!(inventory.selected_slot, 0);
+        assert!(inventory.toolbar.iter().all(|slot| slot.is_none()));
+        assert!(inventory.storage.iter().all(|slot| slot.is_none()));
+    }
+
+    #[test]
+    fn test_inventory_add_item() {
+        use crate::inventory::Inventory;
+        
+        let mut inventory = Inventory::new();
+        
+        // Add dirt to inventory
+        assert!(inventory.add_item(BlockType::Dirt, 10));
+        
+        // Check that dirt was added
+        assert_eq!(inventory.toolbar[0].as_ref().unwrap().block_type, BlockType::Dirt);
+        assert_eq!(inventory.toolbar[0].as_ref().unwrap().count, 10);
+        
+        // Add more dirt (should stack)
+        assert!(inventory.add_item(BlockType::Dirt, 5));
+        assert_eq!(inventory.toolbar[0].as_ref().unwrap().count, 15);
+    }
+
+    #[test]
+    fn test_inventory_remove_item() {
+        use crate::inventory::Inventory;
+        
+        let mut inventory = Inventory::new();
+        inventory.add_item(BlockType::Grass, 10);
+        
+        // Remove 5 items
+        assert!(inventory.remove_selected_item(5));
+        assert_eq!(inventory.toolbar[0].as_ref().unwrap().count, 5);
+        
+        // Remove remaining items
+        assert!(inventory.remove_selected_item(5));
+        assert!(inventory.toolbar[0].is_none());
+        
+        // Try to remove from empty slot
+        assert!(!inventory.remove_selected_item(1));
+    }
+
+    #[test]
+    fn test_inventory_slot_selection() {
+        use crate::inventory::Inventory;
+        
+        let mut inventory = Inventory::new();
+        
+        assert_eq!(inventory.selected_slot, 0);
+        
+        inventory.next_slot();
+        assert_eq!(inventory.selected_slot, 1);
+        
+        inventory.prev_slot();
+        assert_eq!(inventory.selected_slot, 0);
+        
+        inventory.prev_slot(); // Should wrap to 8
+        assert_eq!(inventory.selected_slot, 8);
+        
+        inventory.next_slot(); // Should wrap back to 0
+        assert_eq!(inventory.selected_slot, 0);
+    }
+
+    #[test]
+    fn test_inventory_full() {
+        use crate::inventory::Inventory;
+        
+        let mut inventory = Inventory::new();
+        
+        // Fill all slots (9 toolbar + 27 storage = 36 slots)
+        // Each slot can hold up to 64 items
+        for _ in 0..36 {
+            assert!(inventory.add_item(BlockType::Dirt, 64));
+        }
+        
+        // Try to add more when full
+        assert!(!inventory.add_item(BlockType::Dirt, 1));
+    }
+
+    #[test]
+    fn test_inventory_with_world() {
+        let world = World::new(12345);
+        
+        // Check that world has inventory
+        assert_eq!(world.inventory.selected_slot, 0);
+        
+        // Check starter items
+        assert!(world.inventory.toolbar[0].is_some());
+        assert_eq!(world.inventory.toolbar[0].as_ref().unwrap().block_type, BlockType::Dirt);
+    }
+
+    #[test]
+    fn test_inventory_serialization() {
+        use std::fs;
+        let test_path_buf = std::env::temp_dir().join("rustcraft_test_inventory.dat");
+        let test_path = test_path_buf.to_str().unwrap();
+
+        // Create world with inventory
+        {
+            let mut world = World::new(54321);
+            world.inventory.add_item(BlockType::Stone, 32);
+            world.save(test_path).expect("Failed to save world");
+        }
+
+        // Load the world and check inventory
+        {
+            let loaded_world = World::load(test_path).expect("Failed to load world");
+            
+            // Check that inventory was saved/loaded correctly
+            // Should have starter items plus the stone we added
+            let stone_count: u32 = loaded_world.inventory.toolbar.iter()
+                .chain(loaded_world.inventory.storage.iter())
+                .filter_map(|slot| slot.as_ref())
+                .filter(|stack| stack.block_type == BlockType::Stone)
+                .map(|stack| stack.count)
+                .sum();
+            
+            assert!(stone_count >= 32, "Stone count should be at least 32, got {}", stone_count);
+        }
+
+        // Cleanup
+        fs::remove_file(test_path_buf).ok();
     }
 }
 
