@@ -31,7 +31,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::WindowBuilder;
 use world::World;
 use world_gen::WorldGenerator;
-use std::collections::HashMap;
+
 
 fn main() {
     env_logger::init();
@@ -91,7 +91,6 @@ fn main() {
 
     let mut ui_renderer = UiRenderer::new();
     let mut world_needs_update = false;
-
     let mut last_camera_chunk = (
         (camera.position.x / 16.0).floor() as i32,
         (camera.position.z / 16.0).floor() as i32,
@@ -217,6 +216,13 @@ fn main() {
                 let cam_chunk_x = (camera.position.x / 16.0).floor() as i32;
                 let cam_chunk_z = (camera.position.z / 16.0).floor() as i32;
 
+                // Check if camera moved to a different chunk
+                let current_chunk = (cam_chunk_x, cam_chunk_z);
+                let camera_moved_chunk = current_chunk != last_camera_chunk;
+                if camera_moved_chunk {
+                    last_camera_chunk = current_chunk;
+                }
+
                 let view_dist = config.view_distance;
                 for dx in -view_dist..=view_dist {
                     for dz in -view_dist..=view_dist {
@@ -224,12 +230,10 @@ fn main() {
                     }
                 }
 
-                // Update mesh if world changed
-                if world_needs_update {
+                // Update mesh if world changed or camera moved to different chunk
+                if world_needs_update || camera_moved_chunk {
                     renderer.update_mesh(&world, &camera);
                     world_needs_update = false;
-                } else {
-                    renderer.update_mesh(&world, &camera);
                 }
                 
                 renderer.update_camera(&camera);
