@@ -105,7 +105,7 @@ fn main() {
     }
 
     // Initial mesh build
-    renderer.update_mesh(&mut world, &camera);
+    renderer.update_mesh(&mut world, &camera, view_dist);
     renderer.update_ui(&ui_renderer);
 
     let mut last_frame = Instant::now();
@@ -232,7 +232,7 @@ fn main() {
 
                 // Update mesh if world changed or camera moved to different chunk
                 if world_needs_update || camera_moved_chunk {
-                    renderer.update_mesh(&mut world, &camera);
+                    renderer.update_mesh(&mut world, &camera, config.view_distance);
                     world_needs_update = false;
                 }
                 

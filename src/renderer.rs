@@ -480,11 +480,19 @@ impl Renderer {
         }
     }
 
-    pub fn update_mesh(&mut self, world: &mut World, camera: &Camera) {
+    pub fn update_mesh(&mut self, world: &mut World, camera: &Camera, view_distance: i32) {
         let cam_chunk_x = (camera.position.x / 16.0).floor() as i32;
         let cam_chunk_z = (camera.position.z / 16.0).floor() as i32;
 
-        let render_distance = 8;
+        let render_distance = view_distance;
+        
+        // Evict chunks from cache that are too far away (beyond render distance + buffer)
+        let eviction_distance = render_distance + 2;
+        self.chunk_mesh_cache.retain(|&(chunk_x, chunk_z), _| {
+            let dx = (chunk_x - cam_chunk_x).abs();
+            let dz = (chunk_z - cam_chunk_z).abs();
+            dx <= eviction_distance && dz <= eviction_distance
+        });
         
         // Build or update chunk meshes for dirty chunks
         for dx in -render_distance..=render_distance {
