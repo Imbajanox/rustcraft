@@ -151,8 +151,8 @@ impl MeshBuilder {
             self.add_face(
                 x + 1.0,
                 y,
-                z,
-                [0.0, 0.0, 1.0],
+                z + 1.0,    
+                [0.0, 0.0, -1.0], // changed to point u so u x v = +X (outward)
                 [0.0, 1.0, 0.0],
                 color,
                 0.7,
@@ -165,8 +165,8 @@ impl MeshBuilder {
                 x,
                 y,
                 z,
+                [0.0, 0.0, 1.0], // changed so u x v = -X (outward for left face)
                 [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0],
                 color,
                 0.7,
             );
