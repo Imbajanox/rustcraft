@@ -19,9 +19,23 @@ A Minecraft-like voxel game prototype built in Rust with procedural world genera
 - **W/A/S/D**: Move forward/left/backward/right
 - **Space**: Jump (when on ground)
 - **Mouse Movement**: Look around (cursor is automatically grabbed)
+- **Mouse Wheel**: Select block type to place
 - **Left Mouse Button**: Destroy block
 - **Right Mouse Button**: Place block
+- **F3**: Toggle debug mode (shows detailed info in console)
 - **Escape**: Save and quit
+
+## Configuration
+
+The game creates a `config.json` file on first run with the following configurable settings:
+
+- `sensitivity`: Mouse look sensitivity (default: 0.005)
+- `walk_speed`: Player movement speed in blocks/second (default: 4.3)
+- `view_distance`: How many chunks to render around the player (default: 6)
+- `fov`: Field of view in degrees (default: 70.0)
+- `show_debug`: Whether to show debug info by default (default: false)
+
+You can edit this file to customize your game settings. Changes are saved when you exit the game.
 
 ## Running on Windows
 
@@ -64,10 +78,30 @@ A Minecraft-like voxel game prototype built in Rust with procedural world genera
 ### Notes
 
 - The game will create a `world.dat` file to save your world state
+- A `config.json` file will be created to store your settings
 - Performance is better in release mode (with `--release` flag)
 - First run may take longer as it generates the initial world chunks
-- Console will show FPS and current position
-- The world will be saved automatically when you press Escape or close the window
+- Console will show FPS and current position (press F3 for detailed debug info)
+- The world and config will be saved automatically when you press Escape or close the window
+
+## Recent Improvements
+
+### Enhanced Collision Detection (v0.1.0)
+- Fixed issues with player falling through blocks at edges and corners
+- Improved collision handling with epsilon margins for more stable physics
+- Added step-up mechanics allowing players to climb blocks up to 0.5 units high
+- Better ground and ceiling collision detection
+- Smoother player movement along walls
+
+### Configuration System
+- Customizable game settings via `config.json`
+- Adjustable mouse sensitivity, movement speed, and view distance
+- Settings persist between game sessions
+
+### Debug Mode
+- Press F3 to toggle enhanced debug information
+- Shows detailed player stats: position, velocity, chunk coordinates
+- Displays FPS counter and ground state
 
 ## Technical Details
 
