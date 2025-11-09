@@ -37,4 +37,19 @@ impl BlockType {
             BlockType::Stone => [0.5, 0.5, 0.5],
         }
     }
+
+    pub fn get_texture_path(&self) -> Option<&'static str> {
+        match self {
+            BlockType::Air => None,
+            BlockType::Dirt => Some("textures/dirt.png"),
+            BlockType::Sand => Some("textures/sand.png"),
+            BlockType::Grass => Some("textures/grass.png"),
+            BlockType::Wood => Some("textures/wood.png"),
+            BlockType::Leaves => Some("textures/leaves.png"),
+            BlockType::Planks => Some("textures/planks.png"),
+            BlockType::Glass => Some("textures/glass.png"),
+            BlockType::Water => Some("textures/water.png"),
+            BlockType::Stone => Some("textures/stone.png"),
+        }
+    }
 }

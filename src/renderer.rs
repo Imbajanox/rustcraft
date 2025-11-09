@@ -5,6 +5,130 @@ use crate::vertex::{Uniforms, Vertex};
 use crate::world::World;
 use wgpu::util::DeviceExt;
 
+fn load_texture_atlas(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+) -> Result<(wgpu::Texture, wgpu::TextureView, wgpu::Sampler), String> {
+    // Try to load texture atlas from textures directory
+    // For now, we'll load the dirt texture as a fallback
+    let texture_bytes = match std::fs::read("textures/dirt.png") {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            // If texture loading fails, create a simple 16x16 white texture as fallback
+            return create_fallback_texture(device, queue);
+        }
+    };
+
+    let img = match image::load_from_memory(&texture_bytes) {
+        Ok(img) => img.to_rgba8(),
+        Err(_) => return create_fallback_texture(device, queue),
+    };
+
+    let dimensions = img.dimensions();
+    let size = wgpu::Extent3d {
+        width: dimensions.0,
+        height: dimensions.1,
+        depth_or_array_layers: 1,
+    };
+
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Block Texture Atlas"),
+        size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+
+    queue.write_texture(
+        wgpu::ImageCopyTexture {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &img,
+        wgpu::ImageDataLayout {
+            offset: 0,
+            bytes_per_row: Some(4 * dimensions.0),
+            rows_per_image: Some(dimensions.1),
+        },
+        size,
+    );
+
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::Repeat,
+        address_mode_v: wgpu::AddressMode::Repeat,
+        address_mode_w: wgpu::AddressMode::Repeat,
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+    });
+
+    Ok((texture, view, sampler))
+}
+
+fn create_fallback_texture(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+) -> Result<(wgpu::Texture, wgpu::TextureView, wgpu::Sampler), String> {
+    // Create a simple 16x16 white texture
+    let size = wgpu::Extent3d {
+        width: 16,
+        height: 16,
+        depth_or_array_layers: 1,
+    };
+
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Fallback Texture"),
+        size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+
+    // Create white pixels
+    let pixels: Vec<u8> = (0..16 * 16)
+        .flat_map(|_| [255u8, 255u8, 255u8, 255u8])
+        .collect();
+
+    queue.write_texture(
+        wgpu::ImageCopyTexture {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &pixels,
+        wgpu::ImageDataLayout {
+            offset: 0,
+            bytes_per_row: Some(4 * 16),
+            rows_per_image: Some(16),
+        },
+        size,
+    );
+
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::Repeat,
+        address_mode_v: wgpu::AddressMode::Repeat,
+        address_mode_w: wgpu::AddressMode::Repeat,
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+    });
+
+    Ok((texture, view, sampler))
+}
+
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -15,6 +139,7 @@ pub struct Renderer {
     ui_pipeline: wgpu::RenderPipeline,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
+    texture_bind_group: wgpu::BindGroup,
     uniforms: Uniforms,
     depth_texture: wgpu::Texture,
     depth_view: wgpu::TextureView,
@@ -118,10 +243,55 @@ impl Renderer {
             label: Some("uniform_bind_group"),
         });
 
+        // Load texture
+        let (_texture, texture_view, texture_sampler) = 
+            load_texture_atlas(&device, &queue).unwrap_or_else(|_| {
+                create_fallback_texture(&device, &queue).unwrap()
+            });
+
+        // Create texture bind group layout
+        let texture_bind_group_layout = 
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
+        let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&texture_sampler),
+                },
+            ],
+            label: Some("texture_bind_group"),
+        });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout],
+                bind_group_layouts: &[&uniform_bind_group_layout, &texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -252,6 +422,7 @@ impl Renderer {
             ui_pipeline,
             uniform_buffer,
             uniform_bind_group,
+            texture_bind_group,
             uniforms,
             depth_texture,
             depth_view,
@@ -438,6 +609,7 @@ impl Renderer {
             // Render world
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.texture_bind_group, &[]);
 
             if let (Some(vertex_buffer), Some(index_buffer)) =
                 (&self.vertex_buffer, &self.index_buffer)
