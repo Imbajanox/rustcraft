@@ -4,6 +4,7 @@ use crate::ui::{UiRenderer, UiVertex};
 use crate::vertex::{Uniforms, Vertex};
 use crate::world::World;
 use wgpu::util::DeviceExt;
+use std::collections::HashMap;
 
 fn load_texture_atlas(
     device: &wgpu::Device,
@@ -134,6 +135,11 @@ fn create_fallback_texture(
     Ok((texture, view, sampler))
 }
 
+pub struct ChunkMesh {
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
+}
+
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -157,6 +163,7 @@ pub struct Renderer {
     toolbar_vertex_buffer: Option<wgpu::Buffer>,
     toolbar_index_buffer: Option<wgpu::Buffer>,
     toolbar_num_indices: u32,
+    chunk_mesh_cache: HashMap<(i32, i32), ChunkMesh>,
 }
 
 impl Renderer {
@@ -440,6 +447,7 @@ impl Renderer {
             toolbar_vertex_buffer: None,
             toolbar_index_buffer: None,
             toolbar_num_indices: 0,
+            chunk_mesh_cache: HashMap::new(),
         }
     }
 
@@ -472,32 +480,73 @@ impl Renderer {
         }
     }
 
-    pub fn update_mesh(&mut self, world: &World, camera: &Camera) {
-        let mut mesh_builder = MeshBuilder::new();
-        mesh_builder.clear();
-
+    pub fn update_mesh(&mut self, world: &mut World, camera: &Camera) {
         let cam_chunk_x = (camera.position.x / 16.0).floor() as i32;
         let cam_chunk_z = (camera.position.z / 16.0).floor() as i32;
 
         let render_distance = 8;
-
+        
+        // Build or update chunk meshes for dirty chunks
         for dx in -render_distance..=render_distance {
             for dz in -render_distance..=render_distance {
                 let chunk_x = cam_chunk_x + dx;
                 let chunk_z = cam_chunk_z + dz;
+                let chunk_key = (chunk_x, chunk_z);
 
                 if let Some(chunk) = world.get_chunk(chunk_x, chunk_z) {
-                    mesh_builder.build_chunk_mesh(chunk, world);
+                    // Only rebuild mesh if chunk is dirty or not cached
+                    if chunk.dirty || !self.chunk_mesh_cache.contains_key(&chunk_key) {
+                        let mut mesh_builder = MeshBuilder::new();
+                        mesh_builder.build_chunk_mesh(chunk, world);
+                        
+                        self.chunk_mesh_cache.insert(chunk_key, ChunkMesh {
+                            vertices: mesh_builder.vertices,
+                            indices: mesh_builder.indices,
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Mark all visible chunks as clean
+        for dx in -render_distance..=render_distance {
+            for dz in -render_distance..=render_distance {
+                let chunk_x = cam_chunk_x + dx;
+                let chunk_z = cam_chunk_z + dz;
+                if let Some(chunk) = world.get_chunk_mut(chunk_x, chunk_z) {
+                    chunk.mark_clean();
+                }
+            }
+        }
+        
+        // Combine all visible chunk meshes into single buffers
+        let mut all_vertices = Vec::new();
+        let mut all_indices = Vec::new();
+        
+        for dx in -render_distance..=render_distance {
+            for dz in -render_distance..=render_distance {
+                let chunk_x = cam_chunk_x + dx;
+                let chunk_z = cam_chunk_z + dz;
+                let chunk_key = (chunk_x, chunk_z);
+                
+                if let Some(chunk_mesh) = self.chunk_mesh_cache.get(&chunk_key) {
+                    let vertex_offset = all_vertices.len() as u32;
+                    all_vertices.extend_from_slice(&chunk_mesh.vertices);
+                    
+                    // Offset indices by current vertex count
+                    for &index in &chunk_mesh.indices {
+                        all_indices.push(index + vertex_offset);
+                    }
                 }
             }
         }
 
-        if !mesh_builder.vertices.is_empty() {
+        if !all_vertices.is_empty() {
             self.vertex_buffer = Some(
                 self.device
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("Vertex Buffer"),
-                        contents: bytemuck::cast_slice(&mesh_builder.vertices),
+                        contents: bytemuck::cast_slice(&all_vertices),
                         usage: wgpu::BufferUsages::VERTEX,
                     }),
             );
@@ -506,12 +555,12 @@ impl Renderer {
                 self.device
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("Index Buffer"),
-                        contents: bytemuck::cast_slice(&mesh_builder.indices),
+                        contents: bytemuck::cast_slice(&all_indices),
                         usage: wgpu::BufferUsages::INDEX,
                     }),
             );
 
-            self.num_indices = mesh_builder.indices.len() as u32;
+            self.num_indices = all_indices.len() as u32;
         }
     }
 

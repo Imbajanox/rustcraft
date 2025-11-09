@@ -70,6 +70,28 @@ impl World {
         // Set the block
         if let Some(chunk) = self.get_chunk_mut(chunk_x, chunk_z) {
             chunk.set_block(local_x, y as usize, local_z, block);
+            
+            // Mark neighboring chunks as dirty if block is on chunk edge
+            if local_x == 0 {
+                if let Some(neighbor) = self.get_chunk_mut(chunk_x - 1, chunk_z) {
+                    neighbor.mark_dirty();
+                }
+            } else if local_x == CHUNK_SIZE - 1 {
+                if let Some(neighbor) = self.get_chunk_mut(chunk_x + 1, chunk_z) {
+                    neighbor.mark_dirty();
+                }
+            }
+            
+            if local_z == 0 {
+                if let Some(neighbor) = self.get_chunk_mut(chunk_x, chunk_z - 1) {
+                    neighbor.mark_dirty();
+                }
+            } else if local_z == CHUNK_SIZE - 1 {
+                if let Some(neighbor) = self.get_chunk_mut(chunk_x, chunk_z + 1) {
+                    neighbor.mark_dirty();
+                }
+            }
+            
             true
         } else {
             false

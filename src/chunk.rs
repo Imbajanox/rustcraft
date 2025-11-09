@@ -9,6 +9,8 @@ pub struct Chunk {
     pub blocks: Vec<BlockType>,
     pub x: i32,
     pub z: i32,
+    #[serde(skip)]
+    pub dirty: bool,
 }
 
 impl Chunk {
@@ -17,6 +19,7 @@ impl Chunk {
             blocks: vec![BlockType::Air; CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE],
             x,
             z,
+            dirty: true,
         }
     }
 
@@ -35,6 +38,15 @@ impl Chunk {
         if x < CHUNK_SIZE && y < CHUNK_HEIGHT && z < CHUNK_SIZE {
             let index = self.get_index(x, y, z);
             self.blocks[index] = block;
+            self.dirty = true;
         }
+    }
+
+    pub fn mark_clean(&mut self) {
+        self.dirty = false;
+    }
+
+    pub fn mark_dirty(&mut self) {
+        self.dirty = true;
     }
 }
