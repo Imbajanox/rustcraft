@@ -3,6 +3,8 @@ mod camera;
 mod chunk;
 mod input;
 mod mesh;
+mod physics;
+mod raycast;
 mod renderer;
 mod vertex;
 mod world;
@@ -13,6 +15,7 @@ mod tests;
 
 use camera::Camera;
 use input::InputHandler;
+use physics::Player;
 use renderer::Renderer;
 use std::sync::Arc;
 use std::time::Instant;
@@ -35,11 +38,19 @@ fn main() {
 
     let window = Arc::new(window);
 
+    // Grab and hide the cursor for FPS-style controls
+    window.set_cursor_grab(winit::window::CursorGrabMode::Confined)
+        .or_else(|_e| window.set_cursor_grab(winit::window::CursorGrabMode::Locked))
+        .unwrap_or_else(|e| eprintln!("Failed to grab cursor: {}", e));
+    window.set_cursor_visible(false);
+
     let mut renderer = pollster::block_on(Renderer::new(window.clone()));
 
     let aspect = renderer.size.width as f32 / renderer.size.height as f32;
     let mut camera = Camera::new(aspect);
+    let mut player = Player::new(camera.position);
     let mut input_handler = InputHandler::new();
+    let mut world_needs_update = false;
 
     let world_path = "world.dat";
     let mut world = World::load(world_path).unwrap_or_else(|_| {
@@ -96,14 +107,27 @@ fn main() {
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 input_handler.process_mouse_button(*state, *button);
+                
+                // Handle block interactions on mouse click
+                if *state == ElementState::Pressed
+                    && input_handler.handle_block_interaction(&camera, &mut world) {
+                    world_needs_update = true;
+                }
             }
             WindowEvent::RedrawRequested => {
                 let now = Instant::now();
                 let delta_time = now.duration_since(last_frame).as_secs_f32();
                 last_frame = now;
 
-                // Update camera
-                input_handler.update_camera(&mut camera, delta_time);
+                // Update camera look direction
+                input_handler.update_camera(&mut camera);
+
+                // Update player physics and movement
+                input_handler.update_player(&mut player, &camera, delta_time);
+                player.apply_physics(delta_time, &world);
+
+                // Sync camera position with player
+                camera.position = player.position + glam::Vec3::new(0.0, 1.6, 0.0); // Eye height
 
                 // Load chunks around camera
                 let cam_chunk_x = (camera.position.x / 16.0).floor() as i32;
@@ -115,7 +139,14 @@ fn main() {
                     }
                 }
 
-                renderer.update_mesh(&world, &camera);
+                // Update mesh if world changed
+                if world_needs_update {
+                    renderer.update_mesh(&world, &camera);
+                    world_needs_update = false;
+                } else {
+                    renderer.update_mesh(&world, &camera);
+                }
+                
                 renderer.update_camera(&camera);
 
                 match renderer.render() {
@@ -128,8 +159,10 @@ fn main() {
                 frame_count += 1;
                 if now.duration_since(last_fps_update).as_secs() >= 1 {
                     println!(
-                        "FPS: {} | Pos: ({:.1}, {:.1}, {:.1})",
-                        frame_count, camera.position.x, camera.position.y, camera.position.z
+                        "FPS: {} | Pos: ({:.1}, {:.1}, {:.1}) | Vel: ({:.1}, {:.1}, {:.1}) | Ground: {}",
+                        frame_count, player.position.x, player.position.y, player.position.z,
+                        player.velocity.x, player.velocity.y, player.velocity.z,
+                        player.on_ground
                     );
                     frame_count = 0;
                     last_fps_update = now;

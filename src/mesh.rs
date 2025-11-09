@@ -21,6 +21,7 @@ impl MeshBuilder {
         self.indices.clear();
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_block_at(&self, world: &World, chunk: &Chunk, cx: usize, cy: usize, cz: usize, dx: i32, dy: i32, dz: i32) -> BlockType {
         let x = cx as i32 + dx;
         let y = cy as i32 + dy;
