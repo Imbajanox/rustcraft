@@ -216,7 +216,7 @@ fn main() {
 
                 frame_count += 1;
                 if now.duration_since(last_fps_update).as_secs() >= 1 {
-                    debug_info.update(&player, frame_count);
+                    debug_info.update(&player, frame_count, &camera, &world);
                     
                     if config.show_debug {
                         let debug_lines = debug_info.format_display();

@@ -399,8 +399,6 @@ mod tests {
         let mut player = Player::new(Vec3::new(11.5, 11.0, 8.0));
         player.on_ground = true;
         
-        let initial_x = player.position.x;
-        
         // Try to move into the wall repeatedly
         for _ in 0..10 {
             player.velocity.x = 5.0;
@@ -471,11 +469,14 @@ mod tests {
     #[test]
     fn test_debug_info_update() {
         use crate::debug::DebugInfo;
+        use crate::camera::Camera;
         
         let mut debug_info = DebugInfo::new();
         let player = Player::new(Vec3::new(10.0, 20.0, 30.0));
+        let camera = Camera::new(1.0);
+        let world = World::new(12345);
         
-        debug_info.update(&player, 60);
+        debug_info.update(&player, 60, &camera, &world);
         
         assert_eq!(debug_info.fps, 60);
         assert_eq!(debug_info.position, Vec3::new(10.0, 20.0, 30.0));
