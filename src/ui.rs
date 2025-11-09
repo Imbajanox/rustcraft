@@ -111,13 +111,7 @@ impl UiRenderer {
             self.add_rect_outline(x, y_pos, slot_size, toolbar_height, border_thickness, border_color);
         }
 
-        // Highlight selected slot (slot 0 by default)
-        let selected_slot = 0;
-        let x = -toolbar_width / 2.0 + selected_slot as f32 * slot_size;
-        let highlight_color = [1.0, 1.0, 1.0, 1.0];
-        self.add_rect_outline(x, y_pos, slot_size, toolbar_height, border_thickness * 2.0, highlight_color);
-
-        // Draw colored blocks in slots to represent block types
+        // Highlight selected slot based on current selected_block
         let block_types = [
             BlockType::Dirt,
             BlockType::Grass,
@@ -128,7 +122,13 @@ impl UiRenderer {
             BlockType::Glass,
             BlockType::Water,
         ];
+        
+        let selected_slot = block_types.iter().position(|&b| b == self.selected_block).unwrap_or(0);
+        let x = -toolbar_width / 2.0 + selected_slot as f32 * slot_size;
+        let highlight_color = [1.0, 1.0, 1.0, 1.0];
+        self.add_rect_outline(x, y_pos, slot_size, toolbar_height, border_thickness * 2.0, highlight_color);
 
+        // Draw colored blocks in slots to represent block types
         for (i, block_type) in block_types.iter().enumerate() {
             let x = -toolbar_width / 2.0 + i as f32 * slot_size;
             let padding = slot_size * 0.2;
@@ -229,6 +229,7 @@ impl UiRenderer {
         (&self.toolbar_vertices, &self.toolbar_indices)
     }
 
+    #[allow(dead_code)]
     pub fn select_block(&mut self, slot: usize) {
         let block_types = [
             BlockType::Dirt,
