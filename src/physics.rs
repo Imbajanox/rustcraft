@@ -62,6 +62,7 @@ impl Player {
         const GRAVITY: f32 = -25.0;
         const TERMINAL_VELOCITY: f32 = -50.0;
         const EPSILON: f32 = 0.001;
+        // const STEP_HEIGHT: f32 = 0.5; // Stepping logic removed to match the original robust collision
         const HALF_WIDTH: f32 = 0.3;
         const HEIGHT: f32 = 1.8;
 
@@ -69,9 +70,7 @@ impl Player {
         let prev_position = self.position;
         let prev_feet_y = prev_position.y;
 
-        // --- NEW: Check support under feet when currently on_ground ---
-        // If the block(s) under the player's feet were removed since last frame, we must clear on_ground
-        // so gravity starts to apply immediately (previously we only cleared on_ground when velocity.y != 0).
+        // --- Check support under feet when currently on_ground (Feature 1: Support Check) ---
         if self.on_ground {
             // small probe distance under feet to avoid jitter from tiny EPSILON differences
             let support_probe = 0.05_f32;
@@ -124,7 +123,7 @@ impl Player {
         // Calculate target position (full step)
         let desired_position = self.position + self.velocity * delta_time;
 
-        // --- VERTICAL SWEEP to avoid tunneling ---
+        // --- VERTICAL SWEEP to avoid tunneling (Feature 2: Vertical Sweep) ---
         // If we're moving down, check integer block layers between prev_feet_y and desired_feet_y
         if self.velocity.y < 0.0 {
             let desired_feet_y = desired_position.y;
@@ -191,6 +190,7 @@ impl Player {
         }
 
         // If after the sweep we still intersect something vertically (rare), run the previous collision resolution
+        // This is the FALLBACK/CEILING logic for vertical movement
         if self.check_collision(world) {
             if self.velocity.y < 0.0 {
                 // Falling - fallback landing logic (only accept blocks whose top <= previous feet)
@@ -270,7 +270,7 @@ impl Player {
             }
         }
 
-        // --- Handle horizontal movement with axis-separated resolution (unchanged) ---
+        // --- Handle horizontal movement with axis-separated resolution (Feature 3: Axis Resolution) ---
         let old_x = self.position.x;
         let old_z = self.position.z;
 
@@ -402,6 +402,40 @@ impl Player {
         }
     }
 
+    // Check if player can fit through a space at a given position (retained from second version)
+    #[allow(dead_code)]
+    pub fn can_fit(&self, position: Vec3, world: &World) -> bool {
+        let test_box = Aabb::from_position(position, 0.3, 1.8);
+        
+        let min_x = test_box.min.x.floor() as i32;
+        let max_x = test_box.max.x.ceil() as i32;
+        let min_y = test_box.min.y.floor() as i32;
+        let max_y = test_box.max.y.ceil() as i32;
+        let min_z = test_box.min.z.floor() as i32;
+        let max_z = test_box.max.z.ceil() as i32;
+
+        for x in min_x..=max_x {
+            for y in min_y..=max_y {
+                for z in min_z..=max_z {
+                    if let Some(block_type) = world.get_block_at(x, y, z) {
+                        if block_type.is_solid() {
+                            let block_aabb = Aabb::new(
+                                Vec3::new(x as f32, y as f32, z as f32),
+                                Vec3::new((x + 1) as f32, (y + 1) as f32, (z + 1) as f32),
+                            );
+                            if test_box.intersects(&block_aabb) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        true
+    }
+
+    // fn check_collision from first version is retained but without the margin from the second version's check_collision, 
+    // to match the original robust logic's intent.
     fn check_collision(&self, world: &World) -> bool {
         // Check all blocks that could intersect with the player's bounding box
         let min_x = self.bounding_box.min.x.floor() as i32;
