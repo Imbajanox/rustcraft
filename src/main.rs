@@ -109,10 +109,9 @@ fn main() {
                 input_handler.process_mouse_button(*state, *button);
                 
                 // Handle block interactions on mouse click
-                if *state == ElementState::Pressed {
-                    if input_handler.handle_block_interaction(&camera, &mut world) {
-                        world_needs_update = true;
-                    }
+                if *state == ElementState::Pressed
+                    && input_handler.handle_block_interaction(&camera, &mut world) {
+                    world_needs_update = true;
                 }
             }
             WindowEvent::RedrawRequested => {

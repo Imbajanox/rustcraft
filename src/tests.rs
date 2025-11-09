@@ -5,7 +5,7 @@ mod tests {
     use crate::mesh::MeshBuilder;
     use crate::world::World;
     use crate::world_gen::WorldGenerator;
-    use crate::physics::{Player, AABB};
+    use crate::physics::{Player, Aabb};
     use crate::raycast::raycast;
     use glam::Vec3;
 
@@ -211,9 +211,9 @@ mod tests {
 
     #[test]
     fn test_aabb_intersection() {
-        let box1 = AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0));
-        let box2 = AABB::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5));
-        let box3 = AABB::new(Vec3::new(2.0, 2.0, 2.0), Vec3::new(3.0, 3.0, 3.0));
+        let box1 = Aabb::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0));
+        let box2 = Aabb::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5));
+        let box3 = Aabb::new(Vec3::new(2.0, 2.0, 2.0), Vec3::new(3.0, 3.0, 3.0));
 
         assert!(box1.intersects(&box2), "Overlapping boxes should intersect");
         assert!(box2.intersects(&box1), "Intersection should be symmetric");

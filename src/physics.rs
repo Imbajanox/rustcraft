@@ -5,16 +5,16 @@ pub struct Player {
     pub position: Vec3,
     pub velocity: Vec3,
     pub on_ground: bool,
-    pub bounding_box: AABB,
+    pub bounding_box: Aabb,
 }
 
 #[derive(Clone, Copy)]
-pub struct AABB {
+pub struct Aabb {
     pub min: Vec3,
     pub max: Vec3,
 }
 
-impl AABB {
+impl Aabb {
     pub fn new(min: Vec3, max: Vec3) -> Self {
         Self { min, max }
     }
@@ -34,7 +34,7 @@ impl AABB {
         }
     }
 
-    pub fn intersects(&self, other: &AABB) -> bool {
+    pub fn intersects(&self, other: &Aabb) -> bool {
         self.min.x < other.max.x
             && self.max.x > other.min.x
             && self.min.y < other.max.y
@@ -50,12 +50,12 @@ impl Player {
             position,
             velocity: Vec3::ZERO,
             on_ground: false,
-            bounding_box: AABB::from_position(position, 0.3, 1.8),
+            bounding_box: Aabb::from_position(position, 0.3, 1.8),
         }
     }
 
     pub fn update_bounding_box(&mut self) {
-        self.bounding_box = AABB::from_position(self.position, 0.3, 1.8);
+        self.bounding_box = Aabb::from_position(self.position, 0.3, 1.8);
     }
 
     pub fn apply_physics(&mut self, delta_time: f32, world: &World) {
@@ -142,7 +142,7 @@ impl Player {
                 for z in min_z..=max_z {
                     if let Some(block_type) = world.get_block_at(x, y, z) {
                         if block_type.is_solid() {
-                            let block_aabb = AABB::new(
+                            let block_aabb = Aabb::new(
                                 Vec3::new(x as f32, y as f32, z as f32),
                                 Vec3::new((x + 1) as f32, (y + 1) as f32, (z + 1) as f32),
                             );
