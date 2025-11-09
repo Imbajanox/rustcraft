@@ -6,6 +6,7 @@ mod mesh;
 mod physics;
 mod raycast;
 mod renderer;
+mod ui;
 mod vertex;
 mod world;
 mod world_gen;
@@ -17,6 +18,7 @@ use camera::Camera;
 use input::InputHandler;
 use physics::Player;
 use renderer::Renderer;
+use ui::UiRenderer;
 use std::sync::Arc;
 use std::time::Instant;
 use winit::event::*;
@@ -50,6 +52,7 @@ fn main() {
     let mut camera = Camera::new(aspect);
     let mut player = Player::new(camera.position);
     let mut input_handler = InputHandler::new();
+    let mut ui_renderer = UiRenderer::new();
     let mut world_needs_update = false;
 
     let world_path = "world.dat";
@@ -68,6 +71,7 @@ fn main() {
     }
 
     renderer.update_mesh(&world, &camera);
+    renderer.update_ui(&ui_renderer);
 
     let mut last_frame = Instant::now();
     let mut frame_count = 0;
@@ -110,8 +114,30 @@ fn main() {
                 
                 // Handle block interactions on mouse click
                 if *state == ElementState::Pressed
-                    && input_handler.handle_block_interaction(&camera, &mut world) {
+                    && input_handler.handle_block_interaction(&camera, &mut world, &ui_renderer) {
                     world_needs_update = true;
+                }
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                match delta {
+                    MouseScrollDelta::LineDelta(_x, y) => {
+                        if *y > 0.0 {
+                            ui_renderer.next_block();
+                            renderer.update_ui(&ui_renderer);
+                        } else if *y < 0.0 {
+                            ui_renderer.prev_block();
+                            renderer.update_ui(&ui_renderer);
+                        }
+                    }
+                    MouseScrollDelta::PixelDelta(pos) => {
+                        if pos.y > 0.0 {
+                            ui_renderer.next_block();
+                            renderer.update_ui(&ui_renderer);
+                        } else if pos.y < 0.0 {
+                            ui_renderer.prev_block();
+                            renderer.update_ui(&ui_renderer);
+                        }
+                    }
                 }
             }
             WindowEvent::RedrawRequested => {

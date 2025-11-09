@@ -97,7 +97,7 @@ impl InputHandler {
         }
     }
 
-    pub fn handle_block_interaction(&mut self, camera: &Camera, world: &mut World) -> bool {
+    pub fn handle_block_interaction(&mut self, camera: &Camera, world: &mut World, ui: &crate::ui::UiRenderer) -> bool {
         let mut world_changed = false;
 
         // Left click - destroy block
@@ -122,7 +122,7 @@ impl InputHandler {
                     let place_x = x + nx;
                     let place_y = y + ny;
                     let place_z = z + nz;
-                    world.set_block_at(place_x, place_y, place_z, BlockType::Dirt);
+                    world.set_block_at(place_x, place_y, place_z, ui.selected_block);
                     world_changed = true;
                 }
             }

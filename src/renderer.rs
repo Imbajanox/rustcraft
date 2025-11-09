@@ -1,5 +1,6 @@
 use crate::camera::Camera;
 use crate::mesh::MeshBuilder;
+use crate::ui::{UiRenderer, UiVertex};
 use crate::vertex::{Uniforms, Vertex};
 use crate::world::World;
 use wgpu::util::DeviceExt;
@@ -11,6 +12,7 @@ pub struct Renderer {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
+    ui_pipeline: wgpu::RenderPipeline,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     uniforms: Uniforms,
@@ -19,6 +21,12 @@ pub struct Renderer {
     vertex_buffer: Option<wgpu::Buffer>,
     index_buffer: Option<wgpu::Buffer>,
     num_indices: u32,
+    crosshair_vertex_buffer: Option<wgpu::Buffer>,
+    crosshair_index_buffer: Option<wgpu::Buffer>,
+    crosshair_num_indices: u32,
+    toolbar_vertex_buffer: Option<wgpu::Buffer>,
+    toolbar_index_buffer: Option<wgpu::Buffer>,
+    toolbar_num_indices: u32,
 }
 
 impl Renderer {
@@ -175,6 +183,53 @@ impl Renderer {
             multiview: None,
         });
 
+        // Create UI pipeline
+        let ui_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("UI Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("ui_shader.wgsl").into()),
+        });
+
+        let ui_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("UI Pipeline Layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[],
+        });
+
+        let ui_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("UI Pipeline"),
+            layout: Some(&ui_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &ui_shader,
+                entry_point: "vs_main",
+                buffers: &[UiVertex::desc()],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &ui_shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None, // No culling for UI
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None, // UI doesn't use depth
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+        });
+
         Self {
             surface,
             device,
@@ -182,6 +237,7 @@ impl Renderer {
             config,
             size,
             render_pipeline,
+            ui_pipeline,
             uniform_buffer,
             uniform_bind_group,
             uniforms,
@@ -190,6 +246,12 @@ impl Renderer {
             vertex_buffer: None,
             index_buffer: None,
             num_indices: 0,
+            crosshair_vertex_buffer: None,
+            crosshair_index_buffer: None,
+            crosshair_num_indices: 0,
+            toolbar_vertex_buffer: None,
+            toolbar_index_buffer: None,
+            toolbar_num_indices: 0,
         }
     }
 
@@ -275,6 +337,52 @@ impl Renderer {
         );
     }
 
+    pub fn update_ui(&mut self, ui: &UiRenderer) {
+        // Update crosshair buffers
+        let (crosshair_verts, crosshair_inds) = ui.get_crosshair_buffers();
+        if !crosshair_verts.is_empty() {
+            self.crosshair_vertex_buffer = Some(
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Crosshair Vertex Buffer"),
+                        contents: bytemuck::cast_slice(crosshair_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    }),
+            );
+            self.crosshair_index_buffer = Some(
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Crosshair Index Buffer"),
+                        contents: bytemuck::cast_slice(crosshair_inds),
+                        usage: wgpu::BufferUsages::INDEX,
+                    }),
+            );
+            self.crosshair_num_indices = crosshair_inds.len() as u32;
+        }
+
+        // Update toolbar buffers
+        let (toolbar_verts, toolbar_inds) = ui.get_toolbar_buffers();
+        if !toolbar_verts.is_empty() {
+            self.toolbar_vertex_buffer = Some(
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Toolbar Vertex Buffer"),
+                        contents: bytemuck::cast_slice(toolbar_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    }),
+            );
+            self.toolbar_index_buffer = Some(
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Toolbar Index Buffer"),
+                        contents: bytemuck::cast_slice(toolbar_inds),
+                        usage: wgpu::BufferUsages::INDEX,
+                    }),
+            );
+            self.toolbar_num_indices = toolbar_inds.len() as u32;
+        }
+    }
+
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -315,6 +423,7 @@ impl Renderer {
                 timestamp_writes: None,
             });
 
+            // Render world
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
 
@@ -324,6 +433,27 @@ impl Renderer {
                 render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            }
+
+            // Render UI elements
+            render_pass.set_pipeline(&self.ui_pipeline);
+
+            // Render toolbar
+            if let (Some(vertex_buffer), Some(index_buffer)) =
+                (&self.toolbar_vertex_buffer, &self.toolbar_index_buffer)
+            {
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.toolbar_num_indices, 0, 0..1);
+            }
+
+            // Render crosshair
+            if let (Some(vertex_buffer), Some(index_buffer)) =
+                (&self.crosshair_vertex_buffer, &self.crosshair_index_buffer)
+            {
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.crosshair_num_indices, 0, 0..1);
             }
         }
 

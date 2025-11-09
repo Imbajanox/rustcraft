@@ -288,4 +288,64 @@ mod tests {
         assert!(!result.hit, "Ray should not hit anything in empty world");
         assert_eq!(result.position, None, "Should have no hit position");
     }
+
+    #[test]
+    fn test_ui_renderer_creation() {
+        use crate::ui::UiRenderer;
+        
+        let ui = UiRenderer::new();
+        assert_eq!(ui.selected_block, BlockType::Dirt, "Default selected block should be Dirt");
+        
+        let (crosshair_verts, crosshair_inds) = ui.get_crosshair_buffers();
+        assert!(!crosshair_verts.is_empty(), "Crosshair should have vertices");
+        assert!(!crosshair_inds.is_empty(), "Crosshair should have indices");
+        
+        let (toolbar_verts, toolbar_inds) = ui.get_toolbar_buffers();
+        assert!(!toolbar_verts.is_empty(), "Toolbar should have vertices");
+        assert!(!toolbar_inds.is_empty(), "Toolbar should have indices");
+    }
+
+    #[test]
+    fn test_ui_block_selection() {
+        use crate::ui::UiRenderer;
+        
+        let mut ui = UiRenderer::new();
+        assert_eq!(ui.selected_block, BlockType::Dirt);
+        
+        // Test next block
+        ui.next_block();
+        assert_eq!(ui.selected_block, BlockType::Grass);
+        
+        ui.next_block();
+        assert_eq!(ui.selected_block, BlockType::Sand);
+        
+        // Test prev block
+        ui.prev_block();
+        assert_eq!(ui.selected_block, BlockType::Grass);
+        
+        ui.prev_block();
+        assert_eq!(ui.selected_block, BlockType::Dirt);
+        
+        // Test wrapping from last to first
+        ui.prev_block();
+        assert_eq!(ui.selected_block, BlockType::Water);
+        
+        // Test wrapping from first to last (after going to first)
+        ui.next_block();
+        assert_eq!(ui.selected_block, BlockType::Dirt);
+    }
+
+    #[test]
+    fn test_aabb_from_position() {
+        let position = Vec3::new(5.0, 10.0, 5.0);
+        let aabb = Aabb::from_position(position, 0.3, 1.8);
+        
+        assert_eq!(aabb.min.x, 4.7);
+        assert_eq!(aabb.max.x, 5.3);
+        assert_eq!(aabb.min.y, 10.0);
+        assert_eq!(aabb.max.y, 11.8);
+        assert_eq!(aabb.min.z, 4.7);
+        assert_eq!(aabb.max.z, 5.3);
+    }
 }
+
